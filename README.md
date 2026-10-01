@@ -1,1 +1,2 @@
-# CMPUT301F26indigo-events
+# clover
+CMPUT 301-Fall 26 team repo 
