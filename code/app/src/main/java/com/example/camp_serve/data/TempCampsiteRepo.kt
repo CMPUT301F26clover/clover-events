@@ -33,6 +33,10 @@ class TempCampsiteRepo : CampsiteRepository {
         )
     )
 
+    override suspend fun getAllCampsites(): List<Campsite> {
+        return campsites.toList()
+    }
+
     override suspend fun getCampsitesForOwner(ownerId: String): List<Campsite> {
         val result = mutableListOf<Campsite>()
         for (campsite in campsites) {
