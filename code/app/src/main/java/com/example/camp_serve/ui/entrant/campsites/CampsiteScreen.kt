@@ -1,5 +1,6 @@
 package com.example.camp_serve.ui.entrant.campsites
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,9 +13,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,37 +25,51 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.example.camp_serve.data.CampsiteRepository
+import com.example.camp_serve.data.TempCampsiteRepo
+import com.example.camp_serve.model.Campsite
 
-private data class Campsite( // TODO: replace with reference to shared campsite class
-    val name: String,
-    val location: String,
-    val owner: String,
-    val occupancy: Int,
-    val price: Double,
-    val rating: Double,
-)
-
-private val sampleCampsites = // TODO: replace with firestore database
-    listOf(
-        Campsite("Lakeside Camp", "Banff",  "Alex", 5, 12.99, 4.5),
-        Campsite("Pine Ridge", "Jasper", "Sam", 6, 15.99, 4.2)
-    )
-
+/**
+ * Entrant campsites screen that displays available campsites loaded from the repository.
+ *
+ * @param navController navigation controller for screen transitions
+ * @param repository data source for campsites (defaults to [TempCampsiteRepo])
+ * @param onCampsiteClick callback when a campsite item is clicked
+ */
 @Composable
-fun CampsitesScreen(navController: NavController) {
+fun CampsitesScreen(
+    navController: NavController,
+    repository: CampsiteRepository = remember { TempCampsiteRepo() },
+    onCampsiteClick: (Campsite) -> Unit = { campsite ->
+        if (campsite.id.isNotBlank()) {
+            navController.navigate("campsite_detail/${campsite.id}")
+        }
+    }
+) {
     var userInput by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
-    val campsites = sampleCampsites // read only
+    var campsites by remember { mutableStateOf(listOf<Campsite>()) }
+    var loading by remember { mutableStateOf(true) }
 
-    val filtered = if (query.isBlank()) { // empty query -> show all
+    // Load campsites from the repository when screen opens
+    LaunchedEffect(Unit) {
+        campsites = repository.getAllCampsites()
+        loading = false
+    }
+
+    val filtered = if (query.isBlank()) {
         campsites
     } else {
         campsites.filter {
-            it.name.contains(query, ignoreCase = true)
+            it.name.contains(query, ignoreCase = true) ||
+                    it.location.contains(query, ignoreCase = true)
         }
     }
 
@@ -77,8 +94,11 @@ fun CampsitesScreen(navController: NavController) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
-                value = query,
-                onValueChange = { query = it },
+                value = userInput,
+                onValueChange = {
+                    userInput = it
+                    query = it
+                },
                 label = { Text("Search Campsites") },
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.weight(1f),
@@ -96,8 +116,16 @@ fun CampsitesScreen(navController: NavController) {
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Campsite list
-        if (filtered.isEmpty()) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(32.dp)
+            )
+        } else if (filtered.isEmpty()) {
             Text(
                 text = "No campsites found.",
                 modifier = Modifier
@@ -110,14 +138,43 @@ fun CampsitesScreen(navController: NavController) {
         } else {
             LazyColumn {
                 items(filtered) { campsite ->
-                    Text(
-                        text = campsite.name,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
-                    )
+                            .clickable { onCampsiteClick(campsite) }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = campsite.name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Text(
+                            text = "Location: ${campsite.location.ifBlank { "N/A" }}",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                        Text(
+                            text = "Maximum Occupancy: ${campsite.maxOccupancy}",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                        val ratingText = if (campsite.rating > 0.0) campsite.rating.toString() else "no rating"
+                        Text(
+                            text = "Rating: $ratingText",
+                            fontSize = 14.sp,
+                            color = Color(0xFF715CAA)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CampsitesScreenPreview() {
+    CampsitesScreen(navController = rememberNavController())
 }
