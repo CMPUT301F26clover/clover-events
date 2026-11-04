@@ -1,5 +1,6 @@
 package com.example.camp_serve.ui.entrant.campsites
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,11 +41,17 @@ import com.example.camp_serve.model.Campsite
  *
  * @param navController navigation controller for screen transitions
  * @param repository data source for campsites (defaults to [TempCampsiteRepo])
+ * @param onCampsiteClick callback when a campsite item is clicked
  */
 @Composable
 fun CampsitesScreen(
     navController: NavController,
-    repository: CampsiteRepository = remember { TempCampsiteRepo() }
+    repository: CampsiteRepository = remember { TempCampsiteRepo() },
+    onCampsiteClick: (Campsite) -> Unit = { campsite ->
+        if (campsite.id.isNotBlank()) {
+            navController.navigate("campsite_detail/${campsite.id}")
+        }
+    }
 ) {
     var userInput by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
@@ -134,6 +141,7 @@ fun CampsitesScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onCampsiteClick(campsite) }
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(
