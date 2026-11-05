@@ -9,8 +9,7 @@ import kotlinx.coroutines.tasks.await
  * It replaces TempEntrantRepo so profile changes survive app restarts.
  * Screens only see the EntrantRepository interface.
  *
- * Outstanding issues: ENTRANT_ID is a placeholder until device-based
- * sign-in (US 01.09.01) is done. Errors are thrown to the caller
+ * Outstanding issues: none
  */
 
 /**
@@ -20,16 +19,16 @@ import kotlinx.coroutines.tasks.await
  * @param db the Firestore instance to use (replaceable in tests)
  */
 class FirestoreEntrantRepo(
+    private val entrantId: String,
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : EntrantRepository {
 
     private companion object {
         const val COLLECTION = "entrants"
-        // TODO: replace with the real device id (US 01.09.01)
-        const val ENTRANT_ID = "fake-id-01"
+
     }
 
-    private fun entrantDoc() = db.collection(COLLECTION).document(ENTRANT_ID)
+    private fun entrantDoc() = db.collection(COLLECTION).document(entrantId)
 
     /**
      * Loads this device's entrant. If none is stored yet, a blank entrant is
@@ -44,7 +43,7 @@ class FirestoreEntrantRepo(
         if (existing != null) {
             return existing
         }
-        val blank = Entrant(id = ENTRANT_ID)
+        val blank = Entrant(id = entrantId)
         entrantDoc().set(blank).await()
         return blank
     }
