@@ -40,6 +40,8 @@ import com.example.camp_serve.R
 import com.example.camp_serve.data.EntrantRepository
 import com.example.camp_serve.model.Entrant
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 
 /**
  * Entrant profile screen. Shows the profile first (name, email, phone).
@@ -66,9 +68,15 @@ fun ProfileScreen (
     var phone by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        current = repository.getEntrant()
+        try {
+            current = repository.getEntrant()
+        } catch (e: Exception) {
+            status = "Could not load your profile. Check your connection."
+        }
         loading = false
     }
 
@@ -78,7 +86,7 @@ fun ProfileScreen (
         }
     } else if (deleted) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Your profile has been deleted.")
+            Text("Your profile has been deleted.\n You have been signed out.")
         }
     }  else if (editing) {
         // if in editing mode
@@ -102,18 +110,20 @@ fun ProfileScreen (
 
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it; status = null },
+                onValueChange = { name = it; status = null; saveError = null },
                 label = { Text("Name") },
                 isError = !nameOk,
+                supportingText = { if (!nameOk) Text("Name can't be empty") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; status = null },
+                onValueChange = { email = it; status = null; saveError = null },
                 label = { Text("Email") },
                 isError = !emailOk,
+                supportingText = { if (!emailOk) Text("Enter a valid email, like name@example.com") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -121,32 +131,33 @@ fun ProfileScreen (
 
             OutlinedTextField(
                 value = phone,
-                onValueChange = { phone = it; status = null },
+                onValueChange = { phone = it; status = null; saveError = null },
                 label = { Text("Phone (optional)") },
                 isError = !phoneOk,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                supportingText = { if (!phoneOk) Text("Use 10 to 15 digits; only + - ( ) and spaces allowed") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (nameOk && emailOk && phoneOk) showSaveDialog = true
+                    }
+                ),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Button(
-                onClick = {
-                    scope.launch {
-                        val updated = current.copy(
-                            name = name.trim(),
-                            email = email.trim(),
-                            phone = phone.trim()
-                        )
-                        repository.updateEntrant(updated)
-                        current = updated
-                        status = "Profile Saved"
-                        editing = false
-                    }
-                },
+                onClick = { showSaveDialog = true },
                 enabled = nameOk && emailOk && phoneOk,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Save changes")
+            }
+
+            saveError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
             }
 
             TextButton(
@@ -154,6 +165,46 @@ fun ProfileScreen (
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Cancel")
+            }
+
+            if (showSaveDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSaveDialog = false },
+                    title = { Text("Save changes?") },
+                    text = { Text("Your profile will be updated with the new information.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showSaveDialog = false
+                            scope.launch {
+                                try {
+                                    val updated = current.copy(
+                                        name = name.trim(),
+                                        email = email.trim(),
+                                        phone = phone.trim()
+                                    )
+                                    repository.updateEntrant(updated)
+                                    current = updated
+                                    status = "Profile saved successfully"
+                                    editing = false
+                                } catch (e: Exception) {
+                                    saveError = "Could not save. Check your connection and try again."
+                                }
+                            }
+                        }) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            // discard the edits and keep the original information
+                            showSaveDialog = false
+                            editing = false
+                            status = null
+                        }) {
+                            Text("Discard changes")
+                        }
+                    }
+                )
             }
         }
     } else {
@@ -205,6 +256,7 @@ fun ProfileScreen (
                             email = current.email
                             phone = current.phone
                             status = null
+                            saveError= null
                             editing = true
                         }
                     ) {
