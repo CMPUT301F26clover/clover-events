@@ -14,10 +14,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.camp_serve.data.TempEntrantRepo
 import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 import com.example.camp_serve.ui.theme.CampserveTheme
+import com.example.camp_serve.data.FirestoreEntrantRepo
 
 class MainActivity : ComponentActivity() {
 
-    private val repository = TempEntrantRepo()
+    private val repository = FirestoreEntrantRepo()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
