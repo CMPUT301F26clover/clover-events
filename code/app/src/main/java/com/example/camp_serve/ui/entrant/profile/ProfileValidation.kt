@@ -1,5 +1,10 @@
 package com.example.camp_serve.ui.entrant.profile
 
+/*
+ * ProfileValidation.kt holds the checks for the entrant profile form
+ * (name, email, phone) used by ProfileScreen (US 01.07.03).
+ * Outstanding issues: none.
+ */
 private val EMAIL_REGEX = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
 
 // True if email looks like name@domain.tld. Email is required
