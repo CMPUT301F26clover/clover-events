@@ -1,0 +1,62 @@
+name: Discord PR Notifications
+
+on:
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR update to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          MENTION_EVERYONE: "false"   # change to "true" to ping @everyone
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          USER: ${{ github.event.sender.login }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$ACTION" = "opened" ]; then
+            COLOR=15158332; STATUS="Pull request opened"     # red
+          elif [ "$MERGED" = "true" ]; then
+            COLOR=3066993;  STATUS="Pull request merged"     # green
+          else
+            COLOR=15844367; STATUS="Pull request closed"     # yellow
+          fi
+
+          CONTENT=""
+          [ "$MENTION_EVERYONE" = "true" ] && CONTENT="@everyone"
+
+          payload=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg status "$STATUS" \
+            --arg desc "**#$NUMBER** $TITLE" \
+            --arg url "$PR_URL" \
+            --arg user "$USER" \
+            --arg branch "\`$HEAD\` → \`$BASE\`" \
+            --arg repo "$REPO" \
+            --argjson color "$COLOR" \
+            '{
+              content: $content,
+              allowed_mentions: { parse: ["everyone"] },
+              embeds: [{
+                title: $status,
+                url: $url,
+                description: $desc,
+                color: $color,
+                fields: [
+                  { name: "By", value: $user, inline: true },
+                  { name: "Branch", value: $branch, inline: true }
+                ],
+                footer: { text: $repo },
+                timestamp: (now | todate)
+              }]
+            }')
+
+          curl -sS -H "Content-Type: application/json" -d "$payload" "$WEBHOOK"
