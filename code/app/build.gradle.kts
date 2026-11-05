@@ -57,4 +57,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     // For the nav bar in admin
     implementation(libs.androidx.navigation.compose.v280)
+    implementation(libs.kotlinx.coroutines.play.services)
 }

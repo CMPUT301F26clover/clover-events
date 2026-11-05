@@ -12,6 +12,13 @@ import com.example.camp_serve.model.Campsite
 interface CampsiteRepository {
 
     /**
+     * Gets all campsites.
+     *
+     * @return list of all campsites
+     */
+    suspend fun getAllCampsites(): List<Campsite>
+
+    /**
      * Gets all campsites that belong to one owner.
      *
      * @param ownerId id of the owner
