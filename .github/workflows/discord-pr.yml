@@ -2,7 +2,7 @@ name: Discord PR Notifications
 
 on:
   pull_request:
-    types: [opened, closed]
+    types: [opened, reopened, closed]
 
 jobs:
   notify:
@@ -29,12 +29,12 @@ jobs:
           FILES: ${{ github.event.pull_request.changed_files }}
           COMMITS: ${{ github.event.pull_request.commits }}
         run: |
-          if [ "$ACTION" = "opened" ]; then
-            COLOR=15158332; STATUS="🔴 Pull request opened"    # red
+          if [ "$ACTION" = "opened" ] || [ "$ACTION" = "reopened" ]; then
+            COLOR=15158332; STATUS="🔴 Pull request $ACTION"    # red
           elif [ "$MERGED" = "true" ]; then
-            COLOR=9000933;  STATUS="🟣 Pull request merged"    # purple
+            COLOR=9000933;  STATUS="🟣 Pull request merged"     # purple
           else
-            COLOR=15844367; STATUS="🟡 Pull request closed"    # yellow
+            COLOR=15844367; STATUS="🟡 Pull request closed"     # yellow
           fi
 
           CONTENT=""
