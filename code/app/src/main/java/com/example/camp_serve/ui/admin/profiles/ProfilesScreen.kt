@@ -51,9 +51,9 @@ private val SampleProfile =
 
 @Composable
 fun ProfileScreen(navController: NavController) {
-    val profile = remember { mutableStateListOf(*SampleProfile.toTypedArray()) }
+    val profiles = remember { mutableStateListOf(*SampleProfile.toTypedArray()) }
     var selectedProfile by remember { mutableStateOf(AccountType.Entrant) }
-    val shownProfile = profile.filter { it.status == selectedProfile }
+    val shownProfile = profiles.filter { it.status == selectedProfile }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -82,14 +82,17 @@ fun ProfileScreen(navController: NavController) {
         }
         LazyColumn {
             items(shownProfile) { profile ->
-                ProfileRow(profile)
+                ProfileRow(
+                    profile = profile,
+                    onRemove = { profiles.remove(profile) }
+                    )
             }
         }
     }
 }
 
 @Composable
-private fun ProfileRow(profile: Profile) {
+private fun ProfileRow(profile: Profile, onRemove : () -> Unit) {
     var removeAlert by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -122,6 +125,7 @@ private fun ProfileRow(profile: Profile) {
                 confirmButton = {
                     TextButton(onClick = {
                         removeAlert = false
+                        onRemove()
                     }) {
                         Text("Remove")
                     }

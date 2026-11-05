@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +44,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.R
 
+// This is considered to be the main activity page(for now)
 private data class Campsite(
     val name: String,
     val location: String,
@@ -88,14 +90,17 @@ fun CampsitesScreen(navController: NavController) {
 
         LazyColumn {
             items(filtered) { campsite ->
-                CampsiteRow(campsite)
+                CampsiteRow(
+                    campsite = campsite,
+                    onRemove = { campsites.remove(campsite)}
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CampsiteRow(campsite: Campsite) {
+private fun CampsiteRow(campsite: Campsite, onRemove : () -> Unit) {
     var removeAlert by remember { mutableStateOf(false) }
     var selectedSite by remember { mutableStateOf(false) }
     Row(
@@ -147,6 +152,7 @@ private fun CampsiteRow(campsite: Campsite) {
                 confirmButton = {
                     TextButton(onClick = {
                         removeAlert = false
+                        onRemove()
                     }) {
                         Text("Remove")
                     }
