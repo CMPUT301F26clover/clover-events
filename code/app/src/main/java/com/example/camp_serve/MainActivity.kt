@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.camp_serve.data.TempEntrantRepo
+import com.example.camp_serve.ui.admin.AdminApp
 import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 import com.example.camp_serve.ui.theme.CampserveTheme
 
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
                         repository = repository,
                         modifier = Modifier.padding(innerPadding)
                     )
+                    AdminApp()
                 }
             }
         }

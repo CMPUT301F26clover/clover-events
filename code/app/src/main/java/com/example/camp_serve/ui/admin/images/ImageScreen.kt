@@ -74,14 +74,17 @@ fun ImagesScreen(navController: NavController) {
 
         LazyColumn {
             items(images) { campsite ->
-                ImageRow(campsite)
+                ImageRow(
+                    images= campsite,
+                    onRemove = {images.remove(campsite)}
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ImageRow(images: ImageItem) {
+private fun ImageRow(images: ImageItem, onRemove : () -> Unit) {
     var removeAlert by remember { mutableStateOf(false) }
     var imageEnlarge by remember { mutableStateOf(false) }
 
@@ -149,6 +152,7 @@ private fun ImageRow(images: ImageItem) {
                 confirmButton = {
                     TextButton(onClick = {
                         removeAlert = false
+                        onRemove()
                     }) {
                         Text("Remove")
                     }
