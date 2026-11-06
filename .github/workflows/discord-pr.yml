@@ -1,0 +1,80 @@
+name: Discord PR Notifications
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR update to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          MENTION_EVERYONE: "false"   # change to "true" to ping @everyone
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          USER: ${{ github.event.sender.login }}
+          AVATAR: ${{ github.event.sender.avatar_url }}
+          USER_URL: ${{ github.event.sender.html_url }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          REPO: ${{ github.repository }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+          FILES: ${{ github.event.pull_request.changed_files }}
+          COMMITS: ${{ github.event.pull_request.commits }}
+        run: |
+          if [ "$ACTION" = "opened" ] || [ "$ACTION" = "reopened" ]; then
+            COLOR=15158332; STATUS="🔴 Pull request $ACTION"    # red
+          elif [ "$MERGED" = "true" ]; then
+            COLOR=9000933;  STATUS="🟣 Pull request merged"     # purple
+          else
+            COLOR=15844367; STATUS="🟡 Pull request closed"     # yellow
+          fi
+
+          CONTENT=""
+          [ "$MENTION_EVERYONE" = "true" ] && CONTENT="@everyone"
+
+          payload=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg status "$STATUS" \
+            --arg desc "**#$NUMBER** $TITLE" \
+            --arg body "$BODY" \
+            --arg url "$PR_URL" \
+            --arg user "$USER" \
+            --arg avatar "$AVATAR" \
+            --arg userurl "$USER_URL" \
+            --arg branch "\`$HEAD\` → \`$BASE\`" \
+            --arg stats "+$ADDITIONS / −$DELETIONS lines · $FILES files · $COMMITS commits" \
+            --arg repo "$REPO" \
+            --argjson color "$COLOR" \
+            '
+            ($body | gsub("\r"; "") | gsub("^\\s+|\\s+$"; "")) as $clean
+            | (if ($clean | length) == 0 then "_No description provided._"
+               elif ($clean | length) > 200 then ($clean[0:200] + "…")
+               else $clean end) as $preview
+            | {
+                content: $content,
+                allowed_mentions: { parse: ["everyone"] },
+                embeds: [{
+                  author: { name: $user, url: $userurl, icon_url: $avatar },
+                  title: $status,
+                  url: $url,
+                  description: $desc,
+                  color: $color,
+                  fields: [
+                    { name: "Description", value: $preview, inline: false },
+                    { name: "Changes", value: $stats, inline: true },
+                    { name: "Branch", value: $branch, inline: true }
+                  ],
+                  footer: { text: $repo },
+                  timestamp: (now | todate)
+                }]
+              }')
+
+          curl -sS -H "Content-Type: application/json" -d "$payload" "$WEBHOOK"
