@@ -63,7 +63,11 @@ class FirestoreEntrantRepo(
      *
      * @throws Exception if the delete fails
      */
-    override suspend fun deleteEntrant() {
-        entrantDoc().delete().await()
+    override suspend fun deleteEntrant(id: String) {
+        db.collection(COLLECTION).document(id).delete().await()
+    }
+
+    override suspend fun getAllEntrants(): List<Entrant> {
+        return db.collection(COLLECTION).get().await().toObjects(Entrant::class.java)
     }
 }

@@ -30,7 +30,7 @@ class TempEntrantRepoTest {
     @Test
     fun deleteEntrant_removesOldInfo() = runBlocking {
         val repo = TempEntrantRepo()
-        repo.deleteEntrant()
+        repo.deleteEntrant("fake-id-01")
         assertEquals("", repo.getEntrant().name)
     }
 }

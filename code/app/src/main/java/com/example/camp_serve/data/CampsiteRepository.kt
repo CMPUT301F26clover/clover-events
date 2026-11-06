@@ -47,4 +47,11 @@ interface CampsiteRepository {
      * @param campsite the campsite with its new details
      */
     suspend fun updateCampsite(campsite: Campsite)
+
+    /**
+     * Deletes a campsite.
+     *
+     * @param id the id of the campsite to delete
+     */
+    suspend fun deleteCampsite(id: String)
 }

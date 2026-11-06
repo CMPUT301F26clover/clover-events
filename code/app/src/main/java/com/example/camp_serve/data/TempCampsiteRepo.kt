@@ -74,4 +74,8 @@ class TempCampsiteRepo : CampsiteRepository {
             }
         }
     }
+
+    override suspend fun deleteCampsite(id: String) {
+        campsites.removeAll { it.id == id }
+    }
 }

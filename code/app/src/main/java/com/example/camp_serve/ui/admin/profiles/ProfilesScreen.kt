@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -28,33 +29,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
-private enum class AccountType { Entrant, Owner }
-
-private data class Profile (
-    val name: String,
-    val email: String,
-    val status: AccountType,
-    val violation: Boolean
-)
-
-private val SampleProfile =
-    listOf(
-        Profile("Jace", "jace@gmail.com", AccountType.Entrant, false),
-        Profile("Sam", "sam@gmail.com",AccountType.Owner, false),
-        Profile("Alex", "alex@gmail.com",AccountType.Owner, true),
-        Profile("George", "george@gmail.com",AccountType.Entrant, true),
-        Profile("John", "john@gmail.com", AccountType.Entrant, false)
-    )
 
 @Composable
-fun ProfileScreen(navController: NavController) {
-    val profiles = remember { mutableStateListOf(*SampleProfile.toTypedArray()) }
-    var selectedProfile by remember { mutableStateOf(AccountType.Entrant) }
-    val shownProfile = profiles.filter { it.status == selectedProfile }
-
+fun ProfileScreen(navController: NavController, vm: AdminProfilesViewModel = viewModel()) {
+    var showOwners by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -66,33 +48,46 @@ fun ProfileScreen(navController: NavController) {
         )
 
         Row(modifier = Modifier.padding(16.dp)) {
-            FilterChip( // From https://developer.android.com/develop/ui/compose/components/chip
-                onClick = { selectedProfile = AccountType.Entrant },
+            FilterChip(
+                onClick = { showOwners = false },
                 label = { Text("Entrants") },
-                selected = selectedProfile == AccountType.Entrant
+                selected = !showOwners
             )
 
-            Spacer(modifier = Modifier.padding(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             FilterChip(
-                onClick = { selectedProfile = AccountType.Owner },
+                onClick = { showOwners = true },
                 label = { Text("Owners") },
-                selected = selectedProfile == AccountType.Owner
+                selected = showOwners
             )
         }
-        LazyColumn {
-            items(shownProfile) { profile ->
-                ProfileRow(
-                    profile = profile,
-                    onRemove = { profiles.remove(profile) }
+        if (!showOwners) {
+            LazyColumn {
+                items(vm.entrants) { entrant ->
+                    ProfileRow(
+                        name = entrant.name,
+                        email = entrant.email,
+                        onRemove = { vm.removeEntrant(entrant) }
                     )
+                }
+            }
+        } else {
+            LazyColumn {
+                items(vm.owners) { owner ->
+                    ProfileRow(
+                        name = owner.name,
+                        email = owner.email,
+                        onRemove = { vm.removeOwner(owner) }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ProfileRow(profile: Profile, onRemove : () -> Unit) {
+private fun ProfileRow(name: String, email: String, onRemove: () -> Unit) {
     var removeAlert by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -103,15 +98,8 @@ private fun ProfileRow(profile: Profile, onRemove : () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(profile.name, fontWeight = FontWeight.Bold)
-            Text(profile.email, fontSize = 12.sp)
-            if (profile.violation) {
-                Text(
-                    text = "Policy violation reported",
-                    fontSize = 12.sp,
-                    color = Color.Red
-                )
-            }
+            Text(name, fontWeight = FontWeight.Bold)
+            Text(email, fontSize = 12.sp)
         }
         Button(onClick = {removeAlert = true}) {
             Text("Remove")
@@ -140,10 +128,4 @@ private fun ProfileRow(profile: Profile, onRemove : () -> Unit) {
             )
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfilesScreenPreview() {
-    ProfileScreen(navController = rememberNavController())
 }
