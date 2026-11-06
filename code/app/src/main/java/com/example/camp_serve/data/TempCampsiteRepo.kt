@@ -15,7 +15,7 @@ class TempCampsiteRepo : CampsiteRepository {
         Campsite(
             id = "camp-01",
             ownerId = "fake-owner-01",
-            name = "Grande Palace Farmhouse",
+            name = "Grande Cache Cookhouse Site",
             location = "Hinton",
             description = "Outdoor cookhouse and tennis court",
             maxOccupancy = 8,
@@ -25,7 +25,7 @@ class TempCampsiteRepo : CampsiteRepository {
         Campsite(
             id = "camp-02",
             ownerId = "fake-owner-01",
-            name = "Malibu Resort",
+            name = "Maligne Ridge",
             location = "Jasper National Park",
             description = "Fire pit and lake view",
             maxOccupancy = 6,
