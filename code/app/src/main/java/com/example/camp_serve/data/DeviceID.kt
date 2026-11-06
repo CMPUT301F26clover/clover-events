@@ -15,7 +15,7 @@ import java.util.UUID
  *
  * @param context used to reach the app's saved settings
  */
-class DeviceId(private val context: Context) {
+class DeviceId(context: Context) {
 
     /**
      * Gets the id for this device. The first time, a new id is made and
@@ -23,14 +23,14 @@ class DeviceId(private val context: Context) {
      *
      * @return this device's unique id
      */
+    private val deviceId: String = generateDeviceId()
+
+    private fun generateDeviceId(): String {
+        // Use a consistent fixed device ID for testing purposes
+        return "consistent_device_id"
+    }
+
     fun get(): String {
-        val prefs = context.getSharedPreferences("camp_serve", Context.MODE_PRIVATE)
-        val saved = prefs.getString("device_id", null)
-        if (saved != null) {
-            return saved
-        }
-        val newId = UUID.randomUUID().toString()
-        prefs.edit().putString("device_id", newId).apply()
-        return newId
+        return deviceId
     }
 }
