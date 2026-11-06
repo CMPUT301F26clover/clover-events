@@ -7,7 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.data.CampsiteRepository
-import com.example.camp_serve.data.TempCampsiteRepo
+import com.example.camp_serve.data.FirestoreCampsiteRepo
 import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
 import com.example.camp_serve.ui.owner.campsites.MyCampsitesScreen
 import com.example.camp_serve.ui.owner.campsites.OwnerCampsiteDetailScreen
@@ -17,20 +17,20 @@ import com.example.camp_serve.ui.owner.campsites.RegisterCampsiteScreen
  * OwnerApp.kt
  * Navigation for the campsite owner side of the app.
  * Screens: my campsites list -> register, and list -> details -> edit.
- * TODO: switch TempCampsiteRepo to the Firestore version.
+ * Campsites are saved in Firestore.
  */
 
 /**
  * Top-level campsite owner navigation.
  *
  * @param ownerId unique ID of the owner (the device id)
- * @param repository data source for the owner's campsites
+ * @param repository where the owner's campsites are saved (Firestore by default)
  */
 @Composable
 fun OwnerApp(
     ownerId: String,
     modifier: Modifier = Modifier,
-    repository: CampsiteRepository = remember { TempCampsiteRepo() }
+    repository: CampsiteRepository = remember { FirestoreCampsiteRepo() }
 ) {
     val navController = rememberNavController()
 
