@@ -2,8 +2,7 @@ package com.example.camp_serve
 
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.camp_serve.data.DeviceId
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert
 import org.junit.Test
 
 /**
@@ -15,13 +14,13 @@ class DeviceIdTest {
 
     @Test
     fun deviceId_isNotEmpty() {
-        assertTrue(DeviceId(context).get().isNotEmpty())
+        Assert.assertTrue(DeviceId(context).get().isNotEmpty())
     }
 
     @Test
     fun deviceId_isSameEveryTime() {
         val first = DeviceId(context).get()
         val second = DeviceId(context).get()
-        assertEquals(first, second)
+        Assert.assertEquals(first, second)
     }
 }
