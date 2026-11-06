@@ -61,29 +61,26 @@ enum class UserRole {
         }
 
         /**
-         * Queries the "users" collection in Cloud Firestore by deviceId,
-         * reads role flags (`isEntrant`, `isOwner`, `isAdmin`), and maps them to a set of [UserRole]s.
-         * Defaults to `setOf(ENTRANT)` if the document or role fields fail to load.
+         * Looks up the user document for [deviceId] using [loadUser] and maps it to roles.
+         * Defaults to `setOf(ENTRANT)` if the document is missing or the lookup fails.
          *
          * @param deviceId ID of the user device
-         * @param db Firestore instance to use
-         * @return set of assigned [UserRole]s
+         * @param loadUser fetches the user's document; defaults to Firestore "users/{deviceId}"
          */
         suspend fun determineUserRoles(
             deviceId: String,
-            db: FirebaseFirestore = FirebaseFirestore.getInstance()
+            loadUser: suspend (String) -> DocumentSnapshot? = { id ->
+                FirebaseFirestore.getInstance().collection("users").document(id).get().await()
+            }
         ): Set<UserRole> {
             return try {
-                val snapshot = db.collection("users").document(deviceId).get().await()
-                if (snapshot.exists()) {
-                    fromDocument(snapshot)
-                } else {
-                    setOf(ENTRANT)
-                }
+                val snapshot = loadUser(deviceId)
+                if (snapshot != null && snapshot.exists()) fromDocument(snapshot) else setOf(ENTRANT)
             } catch (_: Exception) {
-                // Default to ENTRANT if error occurs or document doesn't exist
                 setOf(ENTRANT)
             }
         }
+        suspend fun determineUserRoles(deviceId: String, db: FirebaseFirestore): Set<UserRole> =
+            determineUserRoles(deviceId) { id -> db.collection("users").document(id).get().await() }
     }
 }
