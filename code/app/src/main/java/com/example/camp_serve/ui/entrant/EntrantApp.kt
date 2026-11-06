@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.EntrantRepository
+import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.data.TempEntrantRepo
 import com.example.camp_serve.ui.entrant.campsites.CampsiteDetailScreen
@@ -20,12 +21,14 @@ import com.example.camp_serve.ui.entrant.profile.ProfileScreen
  *
  * @param campsiteRepository repository for fetching campsite data
  * @param entrantRepository repository for managing entrant profile data
+ * @param lotteryRepository lottery storage; null uses the app's default Firestore database
  */
 @Composable
 fun EntrantApp(
     modifier: Modifier = Modifier,
     campsiteRepository: CampsiteRepository = remember { TempCampsiteRepo() },
-    entrantRepository: EntrantRepository = remember { TempEntrantRepo() }
+    entrantRepository: EntrantRepository = remember { TempEntrantRepo() },
+    lotteryRepository: LotteryRepository? = null
 ) {
     val navController = rememberNavController()
 
@@ -48,7 +51,8 @@ fun EntrantApp(
             CampsiteDetailScreen(
                 campsiteId = campsiteId,
                 navController = navController,
-                repository = campsiteRepository
+                repository = campsiteRepository,
+                lotteryRepository = lotteryRepository
             )
         }
 

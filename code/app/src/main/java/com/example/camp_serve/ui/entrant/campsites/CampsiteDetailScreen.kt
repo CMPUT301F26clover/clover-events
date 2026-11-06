@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.data.CampsiteRepository
+import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.model.Campsite
 
@@ -41,6 +42,7 @@ import com.example.camp_serve.model.Campsite
  * @param campsiteId ID of the campsite to display
  * @param navController NavController for navigating back or to other screens
  * @param repository Data source for fetching campsite details (defaults to [TempCampsiteRepo])
+ * @param lotteryRepository Lottery storage; null uses the app's default Firestore database
  * @param onBackClick Callback when the user taps the back button
  */
 @Composable
@@ -48,13 +50,11 @@ fun CampsiteDetailScreen(
     campsiteId: String,
     navController: NavController,
     repository: CampsiteRepository = remember { TempCampsiteRepo() },
+    lotteryRepository: LotteryRepository? = null,
     onBackClick: () -> Unit = { navController.popBackStack() }
 ) {
     var campsite by remember { mutableStateOf<Campsite?>(null) }
     var loading by remember { mutableStateOf(true) }
-
-    // TODO: Replace with actual lottery status check from repository/backend later
-    var isLotteryOpen by remember { mutableStateOf(true) }
 
     LaunchedEffect(campsiteId) {
         campsite = repository.getCampsite(campsiteId)
@@ -125,25 +125,11 @@ fun CampsiteDetailScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Lottery status indicator
-                        Text(
-                            text = if (isLotteryOpen) "Lottery open" else "Lottery closed",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isLotteryOpen) Color(0xFF2E7D32) else Color(0xFFC62828)
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Lottery Waitlist Button (Skeleton)
-                        Button(
-                            onClick = {
-                                // TODO: Implement lottery waitlist entry logic here
-                            },
-                            enabled = isLotteryOpen,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (isLotteryOpen) "Enter Waitlist" else "No active lottery")
+                        key(site.id, site.ownerId, lotteryRepository) {
+                            CampsiteLotterySection(
+                                campsite = site,
+                                repository = lotteryRepository
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

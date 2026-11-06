@@ -130,6 +130,10 @@ class PersistentLotteryDrawServiceTest {
             return advance(id, random)
         }
 
+        override fun observeOpenLotteriesForCampsite(
+            campsiteId: String, ownerId: String
+        ): Flow<List<Lottery>> = error("Not used")
+
         override fun observeChanges(id: String): Flow<Unit> = changes.receiveAsFlow()
         override suspend fun createLottery(lottery: Lottery): Unit = error("Not used")
         override suspend fun getLottery(id: String): Lottery? = error("Not used")

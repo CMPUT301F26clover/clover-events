@@ -19,7 +19,7 @@ class EntrantAppTest {
     @Test
     fun entrantApp_startsOnCampsitesScreen() {
         composeTestRule.setContent {
-            EntrantApp()
+            EntrantApp(lotteryRepository = TestLotteryRepository())
         }
 
         composeTestRule.onNodeWithText("Campsites").assertIsDisplayed()
@@ -29,19 +29,19 @@ class EntrantAppTest {
     @Test
     fun campsiteClick_navigatesToDetailScreen() {
         composeTestRule.setContent {
-            EntrantApp()
+            EntrantApp(lotteryRepository = TestLotteryRepository())
         }
 
         composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()
 
         composeTestRule.onNodeWithText("Description & Amenities").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Enter Waitlist").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No active lottery").assertIsDisplayed()
     }
 
     @Test
     fun backButtonClick_navigatesFromDetailBackToCampsitesScreen() {
         composeTestRule.setContent {
-            EntrantApp()
+            EntrantApp(lotteryRepository = TestLotteryRepository())
         }
 
         composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()

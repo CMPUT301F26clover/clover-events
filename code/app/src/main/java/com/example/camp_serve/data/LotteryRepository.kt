@@ -18,6 +18,13 @@ interface LotteryRepository {
     suspend fun createLottery(lottery: Lottery)
     suspend fun getLottery(id: String): Lottery?
 
+    /**
+     * Observes undrawn lottery configurations for this campsite, including scheduled
+     * registrations. Callers must check the registration dates before offering a join.
+     * These snapshots do not include the private waiting list.
+     */
+    fun observeOpenLotteriesForCampsite(campsiteId: String, ownerId: String): Flow<List<Lottery>>
+
     /** Applies configuration only, preserving the latest stored entrants and selections. */
     suspend fun updateLottery(lottery: Lottery, requesterId: String)
     suspend fun joinLottery(id: String, entrantId: String)

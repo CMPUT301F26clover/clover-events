@@ -59,6 +59,45 @@ class FirestoreLotteryRepo(
     override suspend fun getLottery(id: String): Lottery? =
         db.runTransaction { transaction -> read(transaction, id) }.await()
 
+    override fun observeOpenLotteriesForCampsite(
+        campsiteId: String,
+        ownerId: String
+    ): Flow<List<Lottery>> = callbackFlow {
+        // Campsites are embedded objects, so query the owner and match campsite IDs locally.
+        // One equality filter needs no additional composite index.
+        val listener = db.collection("lotteries").whereEqualTo("ownerId", ownerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                try {
+                    val lotteries = snapshot?.documents.orEmpty().mapNotNull { document ->
+                        val saved = checkNotNull(document.toObject(LotteryDocument::class.java))
+                        if (saved.state != Lottery.State.OPEN.name ||
+                            saved.campsites.none { it.id == campsiteId }) {
+                            return@mapNotNull null
+                        }
+                        Lottery(
+                            id = document.id,
+                            ownerId = saved.ownerId,
+                            campsites = saved.campsites,
+                            registrationStart = saved.registrationStart,
+                            registrationEnd = saved.registrationEnd,
+                            bookingStart = saved.bookingStart,
+                            bookingEnd = saved.bookingEnd,
+                            winnerCount = saved.winnerCount,
+                            waitlistCapacity = saved.waitlistCapacity
+                        )
+                    }
+                    trySend(lotteries)
+                } catch (e: Exception) {
+                    close(e)
+                }
+            }
+        awaitClose { listener.remove() }
+    }.buffer(Channel.CONFLATED)
+
     override suspend fun updateLottery(lottery: Lottery, requesterId: String) {
         val candidate = LotteryDocuments.capture(lottery).lottery
         db.runTransaction { transaction ->

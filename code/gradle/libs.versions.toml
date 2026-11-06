@@ -12,6 +12,7 @@ navigationComposeVersion = "2.10.2"
 navigationRuntimeKtx = "2.10.2"
 navigationCompose = "2.10.2"
 coroutinesPlayServices = "1.11.0"
+monitor = "1.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navig
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
+androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "monitor" }
 
 
 [plugins]
