@@ -8,14 +8,23 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.TempCampsiteRepo
+import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
 import com.example.camp_serve.ui.owner.campsites.MyCampsitesScreen
+import com.example.camp_serve.ui.owner.campsites.OwnerCampsiteDetailScreen
 import com.example.camp_serve.ui.owner.campsites.RegisterCampsiteScreen
 
+/*
+ * OwnerApp.kt
+ * Navigation for the campsite owner side of the app.
+ * Screens: my campsites list -> register, and list -> details -> edit.
+ * TODO: switch TempCampsiteRepo to the Firestore version.
+ */
+
 /**
- * Top-level campsite owner application navigation container.
+ * Top-level campsite owner navigation.
  *
- * @param ownerId unique ID of the owner
- * @param repository data source for campsite registration and listing
+ * @param ownerId unique ID of the owner (the device id)
+ * @param repository data source for the owner's campsites
  */
 @Composable
 fun OwnerApp(
@@ -25,23 +34,52 @@ fun OwnerApp(
 ) {
     val navController = rememberNavController()
 
-    // TODO: Replace with actual navigation logic later (someone who is responsible for campsite owner)
     NavHost(
         navController = navController,
         startDestination = "my_campsites",
         modifier = modifier
     ) {
+        // list of the owner's campsites (US 02.03.01)
         composable("my_campsites") {
             MyCampsitesScreen(
                 repository = repository,
                 ownerId = ownerId,
-                onRegisterClick = { navController.navigate("register_campsite") }
+                onRegisterClick = { navController.navigate("register_campsite") },
+                onCampsiteClick = { campsite ->
+                    navController.navigate("campsite_detail/" + campsite.id)
+                }
             )
         }
+
+        // register a new campsite (US 02.01.01)
         composable("register_campsite") {
             RegisterCampsiteScreen(
                 repository = repository,
                 ownerId = ownerId,
+                onSaved = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+
+        // details of one campsite (US 02.01.04)
+        composable("campsite_detail/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            OwnerCampsiteDetailScreen(
+                repository = repository,
+                campsiteId = campsiteId,
+                onEditClick = { campsite ->
+                    navController.navigate("edit_campsite/" + campsite.id)
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // edit one campsite (US 02.01.03)
+        composable("edit_campsite/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            EditCampsiteScreen(
+                repository = repository,
+                campsiteId = campsiteId,
                 onSaved = { navController.popBackStack() },
                 onCancel = { navController.popBackStack() }
             )
