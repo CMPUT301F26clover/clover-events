@@ -30,10 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.LotteryRepository
-import com.example.camp_serve.data.ReservationRepository
 import com.example.camp_serve.model.Campsite
 import com.example.camp_serve.model.Lottery
-import com.example.camp_serve.model.Reservation
 import com.example.camp_serve.ui.lottery.lotteryStatusText
 import com.example.camp_serve.util.formatDisplayDate
 
@@ -44,7 +42,6 @@ import com.example.camp_serve.util.formatDisplayDate
  * @param ownerId owner using the app
  * @param campsiteRepository campsite data
  * @param lotteryRepository used to list the campsite's lotteries
- * @param reservationRepository used for the booked dates
  * @param onCreateLotteryClick called when the owner taps "Create Lottery"
  * @param onEditClick called when the owner taps "Edit Campsite"
  * @param onQrClick called when the owner taps "Download QR Code"
@@ -55,7 +52,6 @@ fun OwnerCampsiteDetailScreen(
     ownerId: String,
     campsiteRepository: CampsiteRepository,
     lotteryRepository: LotteryRepository,
-    reservationRepository: ReservationRepository,
     modifier: Modifier = Modifier,
     onCreateLotteryClick: (Campsite) -> Unit = {},
     onEditClick: (Campsite) -> Unit = {},
@@ -64,13 +60,10 @@ fun OwnerCampsiteDetailScreen(
     var loading by remember { mutableStateOf(true) }
     var campsite by remember { mutableStateOf<Campsite?>(null) }
     var lotteries by remember { mutableStateOf(listOf<Lottery>()) }
-    var booked by remember { mutableStateOf(listOf<Reservation>()) }
 
     LaunchedEffect(campsiteId) {
         campsite = campsiteRepository.getCampsite(campsiteId)
         lotteries = lotteryRepository.getLotteriesForCampsite(campsiteId)
-        booked = reservationRepository.getReservationsForOwner(ownerId)
-            .filter { it.campsiteId == campsiteId && it.isActive() }
         loading = false
     }
 
@@ -114,8 +107,5 @@ fun OwnerCampsiteDetailScreen(
         Text("Available Dates", fontWeight = FontWeight.Bold)
         Text(if (current.availableDates.isEmpty()) "None listed." else current.availableDates.joinToString(", "))
 
-        Text("Booked Dates", fontWeight = FontWeight.Bold)
-        if (booked.isEmpty()) Text("No bookings.")
-        for (r in booked) Text("${formatDisplayDate(r.startDate)} to ${formatDisplayDate(r.endDate)} · ${r.entrantName}")
     }
 }

@@ -15,8 +15,6 @@ object OwnerRoutes {
     const val CREATE_LOTTERY = "owner_create_lottery/{campsiteId}"
     const val LOTTERY = "owner_lottery/{id}"
     const val EDIT_LOTTERY = "owner_edit_lottery/{id}"
-    const val RESERVATIONS = "owner_reservations"
-    const val CHAT = "owner_chat/{id}"
     const val ALERTS = "owner_alerts"
 
     /** Used as the campsite id when a lottery is created from the Lotteries tab. */
@@ -27,13 +25,11 @@ object OwnerRoutes {
     fun createLottery(campsiteId: String = NO_CAMPSITE) = "owner_create_lottery/$campsiteId"
     fun lottery(id: String) = "owner_lottery/$id"
     fun editLottery(id: String) = "owner_edit_lottery/$id"
-    fun chat(id: String) = "owner_chat/$id"
 
     /** Which bottom bar tab a screen belongs to, so the right tab stays highlighted. */
     fun tabFor(route: String?): String = when {
         route == null -> CAMPSITES
         route.contains("lotter") -> LOTTERIES
-        route.startsWith("owner_reservations") || route.startsWith("owner_chat") -> RESERVATIONS
         route.startsWith("owner_alerts") -> ALERTS
         else -> CAMPSITES
     }

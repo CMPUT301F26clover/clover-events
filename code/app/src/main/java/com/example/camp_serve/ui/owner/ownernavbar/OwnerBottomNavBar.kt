@@ -1,13 +1,11 @@
 /*
- * OwnerBottomNavBar.kt is the owner's bottom bar with four tabs: Campsites, Lotteries,
- * Reservations and Alerts. Same pattern as the admin BottomNavBar.
+ * OwnerBottomNavBar.kt is the owner's bottom bar with three tabs. Same pattern as the admin BottomNavBar.
  * Outstanding issues: none.
  */
 
 package com.example.camp_serve.ui.owner.ownernavbar
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
@@ -37,7 +35,6 @@ fun OwnerBottomNavBar(navController: NavHostController) {
     val tabs = listOf(
         OwnerTab(OwnerRoutes.CAMPSITES, "Campsites", Icons.Filled.Home),
         OwnerTab(OwnerRoutes.LOTTERIES, "Lotteries", Icons.Filled.Star),
-        OwnerTab(OwnerRoutes.RESERVATIONS, "Reservations", Icons.Filled.DateRange),
         OwnerTab(OwnerRoutes.ALERTS, "Alerts", Icons.Filled.Notifications)
     )
 
