@@ -17,6 +17,7 @@ import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 import com.example.camp_serve.ui.theme.CampserveTheme
 import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.data.DeviceId
+import com.example.camp_serve.ui.owner.OwnerApp
 
 class MainActivity : ComponentActivity() {
 
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     )
                     AdminApp()
+                    OwnerApp()
                 }
             }
         }
