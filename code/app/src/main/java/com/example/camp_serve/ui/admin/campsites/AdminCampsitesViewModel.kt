@@ -6,12 +6,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.camp_serve.data.CampsiteRepository
-import com.example.camp_serve.data.TempCampsiteRepo
+import com.example.camp_serve.data.FirestoreCampsiteRepo
 import com.example.camp_serve.model.Campsite
 import kotlinx.coroutines.launch
 
 class AdminCampsitesViewModel(
-    private val repo: CampsiteRepository = TempCampsiteRepo()
+    private val repo: CampsiteRepository = FirestoreCampsiteRepo()
 ) : ViewModel() {
 
     var campsites by mutableStateOf<List<Campsite>>(emptyList())
