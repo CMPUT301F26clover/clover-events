@@ -280,7 +280,7 @@ fun ProfileScreen (
                     confirmButton = {
                         TextButton(onClick = {
                             scope.launch {
-                                repository.deleteEntrant()
+                                repository.deleteEntrant(current.id)
                                 showDeleteDialog = false
                                 deleted = true
                                 onProfileDeleted()

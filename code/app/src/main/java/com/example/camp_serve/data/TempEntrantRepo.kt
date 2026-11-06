@@ -23,7 +23,11 @@ class TempEntrantRepo : EntrantRepository {
         this.entrant = entrant
     }
 
-    override suspend fun deleteEntrant() {
-        entrant = null
+    override suspend fun deleteEntrant(id: String) {
+        if (entrant?.id == id) entrant = null
+    }
+
+    override suspend fun getAllEntrants(): List<Entrant> {
+        return listOfNotNull(entrant)
     }
 }

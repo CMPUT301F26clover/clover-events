@@ -43,28 +43,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.camp_serve.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.camp_serve.model.Campsite
 
 // This is considered to be the main activity page(for now)
-private data class Campsite(
-    val name: String,
-    val location: String,
-    val owner: String,
-    val occupancy: Int,
-    val price: Double,
-    val rating: Double,
-)
-private val sampleCampsites =
-    listOf(
-        Campsite("Lakeside Camp", "Banff",  "Alex", 5, 12.99, 4.5),
-        Campsite("Pine Ridge", "Jasper", "Sam", 6, 15.99, 4.2)
-    )
 
 @Composable
-fun CampsitesScreen(navController: NavController) {
+fun CampsitesScreen(navController: NavController, vm: AdminCampsitesViewModel = viewModel()) {
     var searchText by remember { mutableStateOf("") }
-    val campsites = remember { mutableStateListOf(*sampleCampsites.toTypedArray()) }
 
-    val filtered = campsites.filter {
+    val filtered = vm.campsites.filter {
         it.name.contains(searchText, ignoreCase = true)
     }
 
@@ -92,7 +80,7 @@ fun CampsitesScreen(navController: NavController) {
             items(filtered) { campsite ->
                 CampsiteRow(
                     campsite = campsite,
-                    onRemove = { campsites.remove(campsite)}
+                    onRemove = { vm.remove(campsite) }
                 )
             }
         }
@@ -112,8 +100,8 @@ private fun CampsiteRow(campsite: Campsite, onRemove : () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f) .clickable{ selectedSite = true}) {
-            Text("Name: " + campsite.name, fontWeight = FontWeight.Bold)
-            Text("Location: " +campsite.location, fontSize = 12.sp)
+            Text(campsite.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("Location: " + campsite.location, fontSize = 14.sp)
         }
 
         if (selectedSite) {
@@ -125,12 +113,9 @@ private fun CampsiteRow(campsite: Campsite, onRemove : () -> Unit) {
                         .fillMaxWidth(0.75f)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(campsite.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("Location: " + campsite.location, fontSize = 14.sp)
-                        Text("Owner: " + campsite.owner, fontSize = 14.sp)
-                        Text("Occupancy: " + campsite.occupancy, fontSize = 12.sp)
+                        Text("Owner: " + campsite.ownerId, fontSize = 14.sp)
+                        Text("Max occupancy: " + campsite.maxOccupancy, fontSize = 12.sp)
                         Text("Price: $" + campsite.price, fontSize = 12.sp)
-                        Text("Rating: " +campsite.rating, fontSize = 12.sp)
 
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = { selectedSite = false }) {
@@ -167,11 +152,4 @@ private fun CampsiteRow(campsite: Campsite, onRemove : () -> Unit) {
             )
         }
     }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun CampsitesScreenPreview() {
-    CampsitesScreen(navController = rememberNavController())
 }

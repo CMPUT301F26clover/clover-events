@@ -22,7 +22,16 @@ interface EntrantRepository {
     suspend fun updateEntrant(entrant: Entrant)
 
     /**
-     * Deletes the entrant's profile on this device.
+     * Deletes an entrant's profile.
+     *
+     * @param id the id of the entrant to delete
      */
-    suspend fun deleteEntrant()
+    suspend fun deleteEntrant(id: String)
+
+    /**
+     * Gets every entrant (used by admin).
+     *
+     * @return list of all entrants
+     */
+    suspend fun getAllEntrants(): List<Entrant>
 }
