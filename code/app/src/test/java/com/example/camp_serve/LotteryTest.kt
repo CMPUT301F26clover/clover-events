@@ -32,6 +32,26 @@ class LotteryTest {
     }
 
     @Test
+    fun membershipTracksJoinLeaveAndRejoinWithoutExposingOtherEntrants() {
+        val lottery = lottery()
+        assertFalse(lottery.isOnWaitingList("first"))
+        lottery.join("first", 100)
+        lottery.join("second", 100)
+        assertTrue(lottery.isOnWaitingList("first"))
+        assertFalse(lottery.isOnWaitingList("stranger"))
+
+        assertTrue(lottery.leave("first", 150))
+        assertFalse(lottery.isOnWaitingList("first"))
+        assertTrue(lottery.isOnWaitingList("second"))
+        assertFalse(lottery.leave("first", 150))
+
+        lottery.join("first", 199)
+        assertTrue(lottery.isOnWaitingList("first"))
+        assertThrows(IllegalStateException::class.java) { lottery.leave("first", 200) }
+        assertTrue(lottery.isOnWaitingList("first"))
+    }
+
+    @Test
     fun invalidOwnerUpdatesDoNotPartiallyApply() {
         val lottery = lottery()
         lottery.join("first", 100)

@@ -71,6 +71,11 @@ class Lottery(
         return waitingList.removeEntrant(entrantId)
     }
 
+    /** Checks one entrant's registration without exposing the full waiting list. */
+    @Synchronized
+    fun isOnWaitingList(entrantId: String): Boolean =
+        waitingList.snapshot().any { it.id == entrantId }
+
     @Synchronized
     fun getWaitingList(requesterId: String): List<WaitingList.Entry> =
         waitingList.getEntrants(requesterId) // only the campsite owner can view this

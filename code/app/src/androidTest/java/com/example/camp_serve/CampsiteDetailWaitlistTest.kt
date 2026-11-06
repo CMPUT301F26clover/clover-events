@@ -85,7 +85,7 @@ class CampsiteDetailWaitlistTest {
         compose.onNodeWithText("Join waitlist").performClick()
         compose.onNodeWithText("Confirm").performClick()
         compose.onNodeWithText("Joining…").assertIsNotEnabled()
-        compose.onNodeWithText("Joined waitlist").assertDoesNotExist()
+        compose.onNodeWithText("Leave waitlist").assertDoesNotExist()
         compose.runOnIdle {
             assertTrue(active.getWaitingList(active.ownerId).isEmpty())
             commit.complete(Unit)
@@ -93,7 +93,7 @@ class CampsiteDetailWaitlistTest {
         compose.waitUntil(5_000) {
             active.getWaitingList(active.ownerId).isNotEmpty()
         }
-        compose.onNodeWithText("Joined waitlist").assertIsNotEnabled()
+        compose.onNodeWithText("Leave waitlist").assertIsEnabled()
         compose.runOnIdle {
             val entrantId = DeviceId(InstrumentationRegistry.getInstrumentation().targetContext).get()
             assertEquals(listOf(active.id to entrantId), repository.joins)
@@ -117,7 +117,98 @@ class CampsiteDetailWaitlistTest {
         }
         compose.onNodeWithText("Join waitlist").performClick()
         compose.onNodeWithText("Confirm").performClick()
-        compose.onNodeWithText("Joined waitlist").assertIsNotEnabled()
+        compose.onNodeWithText("Leave waitlist").assertIsEnabled()
+    }
+
+    @Test
+    fun existingEntrantCanCancelLeavingThenConfirmRemovalAndRejoin() {
+        val entrantId = DeviceId(InstrumentationRegistry.getInstrumentation().targetContext).get()
+        val active = lottery().apply {
+            join(entrantId)
+            join("other-entrant")
+        }
+        val repository = TestLotteryRepository(listOf(active))
+        showScreen(repository)
+
+        // Saved membership must offer leaving even without joining during this screen visit.
+        compose.onNodeWithText("Leave waitlist").assertIsEnabled().performClick()
+        compose.onNodeWithText("Leave waitlist?").assertIsDisplayed()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Leave waitlist?").assertDoesNotExist()
+        compose.runOnIdle {
+            assertTrue(repository.leaves.isEmpty())
+            assertTrue(active.isOnWaitingList(entrantId))
+        }
+
+        val commit = CompletableDeferred<Unit>()
+        compose.runOnIdle { repository.commit = commit }
+        compose.onNodeWithText("Leave waitlist").performClick()
+        compose.onNodeWithText("Confirm").performClick()
+        compose.onNodeWithText("Leaving…").assertIsNotEnabled()
+        compose.runOnIdle {
+            assertTrue(active.isOnWaitingList(entrantId))
+            commit.complete(Unit)
+        }
+        compose.waitUntil(5_000) { !active.isOnWaitingList(entrantId) }
+        compose.onNodeWithText("Join waitlist").assertIsEnabled()
+        compose.onNodeWithText("You have left this lottery's waitlist.").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(listOf(active.id to entrantId), repository.leaves)
+            assertTrue(active.isOnWaitingList("other-entrant"))
+        }
+
+        compose.onNodeWithText("Join waitlist").performClick()
+        compose.onNodeWithText("Confirm").performClick()
+        compose.onNodeWithText("Leave waitlist").assertIsEnabled()
+        compose.runOnIdle {
+            assertTrue(active.isOnWaitingList(entrantId))
+            assertEquals(listOf(active.id to entrantId), repository.joins)
+        }
+    }
+
+    @Test
+    fun failedLeaveKeepsRegistrationAndAllowsRetry() {
+        val entrantId = DeviceId(InstrumentationRegistry.getInstrumentation().targetContext).get()
+        val active = lottery().apply { join(entrantId) }
+        val repository = TestLotteryRepository(listOf(active))
+        repository.failure = IllegalStateException("Save failed")
+        showScreen(repository)
+
+        compose.onNodeWithText("Leave waitlist").performClick()
+        compose.onNodeWithText("Confirm").performClick()
+        compose.onNodeWithText(
+            "Could not leave the waitlist. Check your connection and try again."
+        ).assertIsDisplayed()
+        compose.onNodeWithText("Leave waitlist").assertIsEnabled()
+        compose.runOnIdle {
+            assertTrue(active.isOnWaitingList(entrantId))
+            repository.failure = null
+        }
+
+        compose.onNodeWithText("Leave waitlist").performClick()
+        compose.onNodeWithText("Confirm").performClick()
+        compose.onNodeWithText("Join waitlist").assertIsEnabled()
+        compose.runOnIdle { assertTrue(!active.isOnWaitingList(entrantId)) }
+    }
+
+    @Test
+    fun registrationEndDismissesLeaveConfirmationWithoutRemovingEntrant() {
+        val entrantId = DeviceId(InstrumentationRegistry.getInstrumentation().targetContext).get()
+        val repository = TestLotteryRepository(listOf(lottery().apply { join(entrantId) }))
+        showScreen(repository)
+        compose.onNodeWithText("Leave waitlist").performClick()
+
+        val now = System.currentTimeMillis()
+        val expired = lottery(start = now - 120_000, end = now - 60_000).apply {
+            join(entrantId, now - 90_000)
+        }
+        compose.runOnIdle { repository.lotteries.value = listOf(expired) }
+        compose.onNodeWithText("Leave waitlist?").assertDoesNotExist()
+        compose.onNodeWithText("No active lottery").assertIsNotEnabled()
+        compose.runOnIdle {
+            assertTrue(repository.leaves.isEmpty())
+            assertTrue(expired.isOnWaitingList(entrantId))
+        }
     }
 
     @Test

@@ -9,10 +9,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.random.Random
 
-/** In-memory storage for UI tests; joins use the same domain validation as Firestore. */
+/** In-memory storage for UI tests; mutations use the same domain validation as Firestore. */
 internal class TestLotteryRepository(initial: List<Lottery> = emptyList()) : LotteryRepository {
     val lotteries = MutableStateFlow(initial)
     val joins = mutableListOf<Pair<String, String>>()
+    val leaves = mutableListOf<Pair<String, String>>()
     var failure: Exception? = null
     var commit: CompletableDeferred<Unit>? = null
 
@@ -28,9 +29,15 @@ internal class TestLotteryRepository(initial: List<Lottery> = emptyList()) : Lot
     }
 
     override suspend fun createLottery(lottery: Lottery): Unit = error("Not used")
-    override suspend fun getLottery(id: String): Lottery? = error("Not used")
+    override suspend fun getLottery(id: String): Lottery? =
+        lotteries.value.firstOrNull { it.id == id }
     override suspend fun updateLottery(lottery: Lottery, requesterId: String): Unit = error("Not used")
-    override suspend fun leaveLottery(id: String, entrantId: String): Boolean = error("Not used")
+    override suspend fun leaveLottery(id: String, entrantId: String): Boolean {
+        leaves.add(id to entrantId)
+        commit?.await()
+        failure?.let { throw it }
+        return lotteries.value.first { it.id == id }.leave(entrantId)
+    }
     override suspend fun getWaitingList(id: String, requesterId: String): List<WaitingList.Entry> =
         error("Not used")
     override suspend fun getResults(lotteryId: String): List<LotteryResult> = error("Not used")

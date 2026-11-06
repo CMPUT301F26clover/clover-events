@@ -29,7 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-/** Entrant registration controls. Only a confirmed action writes to the waiting list. */
+/** Entrant registration controls. Joining and leaving both require confirmation. */
 @Composable
 internal fun CampsiteLotterySection(
     campsite: Campsite,
@@ -46,8 +46,13 @@ internal fun CampsiteLotterySection(
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var pendingLotteryId by rememberSaveable { mutableStateOf<String?>(null) }
     var joinedLotteryId by rememberSaveable { mutableStateOf<String?>(null) }
-    var joining by remember { mutableStateOf(false) }
-    var joinError by remember { mutableStateOf<String?>(null) }
+    var pendingLeave by rememberSaveable { mutableStateOf(false) }
+    var leftWaitlist by rememberSaveable { mutableStateOf(false) }
+    var updating by remember { mutableStateOf(false) }
+    var actionError by remember { mutableStateOf<String?>(null) }
+    var membershipCheckedFor by remember { mutableStateOf<String?>(null) }
+    var membershipError by remember { mutableStateOf(false) }
+    var membershipRetry by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(campsite.id, campsite.ownerId, repository, retry) {
         loading = true
@@ -89,10 +94,28 @@ internal fun CampsiteLotterySection(
         }
         .minWithOrNull(compareBy<Lottery> { it.registrationEnd }.thenBy { it.id })
     val alreadyJoined = activeLottery != null && joinedLotteryId == activeLottery.id
+    val checkingMembership = activeLottery != null && membershipCheckedFor != activeLottery.id
+
+    LaunchedEffect(activeLottery?.id, storage, membershipRetry) {
+        membershipCheckedFor = null
+        membershipError = false
+        val lottery = activeLottery ?: return@LaunchedEffect
+        val source = storage ?: return@LaunchedEffect
+        try {
+            val saved = checkNotNull(source.getLottery(lottery.id)) { "Lottery not found." }
+            joinedLotteryId = if (saved.isOnWaitingList(entrantId)) lottery.id else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            membershipError = true
+        }
+        membershipCheckedFor = lottery.id
+    }
 
     LaunchedEffect(activeLottery?.id) {
         if (pendingLotteryId != activeLottery?.id) pendingLotteryId = null
-        joinError = null
+        actionError = null
+        leftWaitlist = false
     }
 
     Column {
@@ -101,21 +124,24 @@ internal fun CampsiteLotterySection(
                 val lottery = activeLottery ?: return@Button
                 now = System.currentTimeMillis()
                 if (now >= lottery.registrationStart && now < lottery.registrationEnd) {
-                    joinError = null
+                    actionError = null
+                    pendingLeave = alreadyJoined
                     pendingLotteryId = lottery.id
                 }
             },
             enabled = !loading && !loadError && activeLottery != null &&
-                !alreadyJoined && !joining,
+                !checkingMembership && !membershipError && !updating,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 when {
                     loading -> "Checking lottery…"
                     loadError -> "Lottery unavailable"
-                    joining -> "Joining…"
+                    updating -> if (pendingLeave) "Leaving…" else "Joining…"
                     activeLottery == null -> "No active lottery"
-                    alreadyJoined -> "Joined waitlist"
+                    membershipError -> "Waitlist unavailable"
+                    checkingMembership -> "Checking waitlist…"
+                    alreadyJoined -> "Leave waitlist"
                     else -> "Join waitlist"
                 }
             )
@@ -123,6 +149,8 @@ internal fun CampsiteLotterySection(
 
         if (alreadyJoined) {
             Text("You have joined this lottery's waitlist.")
+        } else if (leftWaitlist) {
+            Text("You have left this lottery's waitlist.")
         }
         if (loadError) {
             Text(
@@ -131,32 +159,50 @@ internal fun CampsiteLotterySection(
             )
             TextButton(onClick = { retry++ }) { Text("Retry") }
         }
-        joinError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (!loadError && activeLottery != null && membershipError) {
+            Text(
+                "Could not check your waitlist registration. Check your connection and try again.",
+                color = MaterialTheme.colorScheme.error
+            )
+            TextButton(onClick = { membershipRetry++ }) { Text("Retry") }
+        }
+        actionError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 
-    val lotteryToJoin = activeLottery?.takeIf { it.id == pendingLotteryId }
-    if (lotteryToJoin != null) {
+    val lotteryToUpdate = activeLottery?.takeIf { it.id == pendingLotteryId }
+    if (lotteryToUpdate != null) {
+        val leaving = pendingLeave
         AlertDialog(
             onDismissRequest = { pendingLotteryId = null },
-            title = { Text("Join waitlist?") },
-            text = { Text("Join the lottery waitlist for ${campsite.name}?") },
+            title = { Text(if (leaving) "Leave waitlist?" else "Join waitlist?") },
+            text = {
+                Text(
+                    if (leaving) "Leave the lottery waitlist for ${campsite.name}?"
+                    else "Join the lottery waitlist for ${campsite.name}?"
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    if (joining || pendingLotteryId != lotteryToJoin.id) return@TextButton
+                    if (updating || pendingLotteryId != lotteryToUpdate.id) return@TextButton
                     pendingLotteryId = null
-                    joining = true
-                    joinError = null
+                    updating = true
+                    actionError = null
                     scope.launch {
                         try {
                             val source = checkNotNull(storage)
-                            source.joinLottery(lotteryToJoin.id, entrantId)
-                            joinedLotteryId = lotteryToJoin.id
+                            if (leaving) {
+                                source.leaveLottery(lotteryToUpdate.id, entrantId)
+                            } else {
+                                source.joinLottery(lotteryToUpdate.id, entrantId)
+                            }
+                            joinedLotteryId = if (leaving) null else lotteryToUpdate.id
+                            leftWaitlist = leaving
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            joinError = waitlistError(e)
+                            actionError = waitlistError(e, leaving)
                         } finally {
-                            joining = false
+                            updating = false
                             now = System.currentTimeMillis()
                         }
                     }
@@ -173,13 +219,14 @@ internal fun CampsiteLotterySection(
     }
 }
 
-private fun waitlistError(error: Exception): String {
+private fun waitlistError(error: Exception, leaving: Boolean): String {
     val cause = generateSequence<Throwable>(error) { it.cause }.last()
     return when (cause.message) {
-        "Registration is not open." -> "Registration is no longer open."
+        "Registration is not open.", "Registration has ended." -> "Registration is no longer open."
         "Waiting list is full." -> "This lottery's waitlist is full."
         "Entrant has already joined." -> "You have already joined this lottery's waitlist."
         "Lottery not found." -> "This lottery is no longer available."
-        else -> "Could not join the waitlist. Check your connection and try again."
+        else -> "Could not ${if (leaving) "leave" else "join"} the waitlist. " +
+            "Check your connection and try again."
     }
 }
