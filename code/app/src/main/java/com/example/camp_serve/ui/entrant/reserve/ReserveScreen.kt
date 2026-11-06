@@ -89,7 +89,12 @@ fun ReserveRoute(
         )
     }
 }
-
+/**
+ * Whether the Reserve button is enabled: the entrant must have chosen a date
+ * and accepted the rules and policies.
+ */
+fun canReserve(selectedDate: String?, accepted: Boolean): Boolean =
+    selectedDate != null && accepted
 @Composable
 fun ReserveScreen(
     offer: CampsiteOffer,
@@ -148,7 +153,7 @@ fun ReserveScreen(
 
         Button(
             onClick = { selectedDate?.let(onReserve) },
-            enabled = selectedDate != null && accepted,
+            enabled = canReserve(selectedDate, accepted),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Reserve")
