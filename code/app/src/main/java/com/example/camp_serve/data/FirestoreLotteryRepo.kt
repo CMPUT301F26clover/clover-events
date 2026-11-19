@@ -3,13 +3,17 @@ package com.example.camp_serve.data
 import com.example.camp_serve.model.Lottery
 import com.example.camp_serve.model.LotteryResult
 import com.example.camp_serve.model.WaitingList
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Transaction
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import kotlin.random.Random
 
@@ -18,6 +22,10 @@ import kotlin.random.Random
  * - lotteries/{id}: configuration, state, and current selection
  * - waitingLists/{lotteryId}: capacity and timestamped registrations
  * - lotteryResults/{resultId}: immutable history of each draw/redraw
+ *
+ * The owner observers listen to both the lottery and waiting list documents. The two
+ * listeners can briefly disagree (for example right after a capacity edit); such a pair
+ * is skipped and the last consistent lottery is kept until the other snapshot arrives.
  *
  * Mutations read fresh documents in a transaction, so joins cannot overfill a
  * list or overwrite another device's join. Notifications run outside transactions.
@@ -97,6 +105,96 @@ class FirestoreLotteryRepo(
             }
         awaitClose { listener.remove() }
     }.buffer(Channel.CONFLATED)
+
+    override fun observeLotteriesForOwner(ownerId: String): Flow<List<Lottery>> {
+        require(ownerId.isNotBlank()) { "Owner ID must not be blank." }
+        val configs = queryFlow(
+            db.collection("lotteries").whereEqualTo("ownerId", ownerId),
+            LotteryDocument::class.java
+        )
+        val waitingLists = queryFlow(
+            db.collection("waitingLists").whereEqualTo("ownerId", ownerId),
+            WaitingListDocument::class.java
+        )
+        return flow {
+            var previous = emptyMap<String, Lottery>()
+            combine(configs, waitingLists) { lotteries, lists ->
+                val restored = lotteries.mapNotNull { (id, saved) ->
+                    val lottery = lists[id]?.let { restoreOrNull(id, saved, it) } ?: previous[id]
+                    lottery?.let { id to it }
+                }.toMap()
+                previous = restored
+                restored.values.sortedWith(compareBy<Lottery> { it.registrationStart }.thenBy { it.id })
+            }.collect { emit(it) }
+        }.buffer(Channel.CONFLATED)
+    }
+
+    override fun observeLottery(id: String): Flow<Lottery?> {
+        val config = documentFlow(lotteryDoc(id), LotteryDocument::class.java)
+        val waitingList = documentFlow(waitingListDoc(id), WaitingListDocument::class.java)
+        return flow {
+            var previous: Lottery? = null
+            combine(config, waitingList) { saved, list -> saved to list }.collect { (saved, list) ->
+                if (saved == null) {
+                    previous = null
+                    emit(null)
+                    return@collect
+                }
+                // Until both documents agree, keep showing the last consistent lottery.
+                val restored = list?.let { restoreOrNull(id, saved, it) }
+                if (restored != null) {
+                    previous = restored
+                    emit(restored)
+                }
+            }
+        }.buffer(Channel.CONFLATED)
+    }
+
+    private fun restoreOrNull(
+        id: String,
+        lottery: LotteryDocument,
+        waitingList: WaitingListDocument
+    ): Lottery? = try {
+        LotteryDocuments(lottery, waitingList).restore(id)
+    } catch (_: IllegalArgumentException) {
+        null
+    } catch (_: IllegalStateException) {
+        null
+    }
+
+    private fun <T : Any> documentFlow(ref: DocumentReference, type: Class<T>): Flow<T?> =
+        callbackFlow {
+            val listener = ref.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                try {
+                    trySend(snapshot?.takeIf { it.exists() }?.toObject(type))
+                } catch (e: Exception) {
+                    close(e)
+                }
+            }
+            awaitClose { listener.remove() }
+        }.buffer(Channel.CONFLATED)
+
+    private fun <T : Any> queryFlow(query: Query, type: Class<T>): Flow<Map<String, T>> =
+        callbackFlow {
+            val listener = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                try {
+                    trySend(snapshot?.documents.orEmpty().associate { document ->
+                        document.id to checkNotNull(document.toObject(type))
+                    })
+                } catch (e: Exception) {
+                    close(e)
+                }
+            }
+            awaitClose { listener.remove() }
+        }.buffer(Channel.CONFLATED)
 
     override suspend fun updateLottery(lottery: Lottery, requesterId: String) {
         val candidate = LotteryDocuments.capture(lottery).lottery

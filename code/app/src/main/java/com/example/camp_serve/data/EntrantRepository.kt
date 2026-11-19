@@ -34,4 +34,13 @@ interface EntrantRepository {
      * @return list of all entrants
      */
     suspend fun getAllEntrants(): List<Entrant>
+
+    /**
+     * Gets the entrants with these ids, for example to show names on a lottery waitlist.
+     * Ids with no stored profile are left out of the result.
+     *
+     * @param ids entrant ids to look up
+     * @return the entrants that were found, in no particular order
+     */
+    suspend fun getEntrantsByIds(ids: Collection<String>): List<Entrant>
 }
