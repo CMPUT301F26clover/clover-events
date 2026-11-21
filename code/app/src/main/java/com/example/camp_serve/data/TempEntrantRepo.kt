@@ -30,4 +30,8 @@ class TempEntrantRepo : EntrantRepository {
     override suspend fun getAllEntrants(): List<Entrant> {
         return listOfNotNull(entrant)
     }
+
+    override suspend fun getEntrantsByIds(ids: Collection<String>): List<Entrant> {
+        return listOfNotNull(entrant).filter { it.id in ids }
+    }
 }

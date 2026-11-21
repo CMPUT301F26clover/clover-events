@@ -24,12 +24,19 @@ import com.example.camp_serve.data.FirestoreLotteryRepo
 import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.model.Campsite
 import com.example.camp_serve.model.Lottery
+import com.example.camp_serve.ui.owner.lotteries.LotteryDates
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-/** Entrant registration controls. Joining and leaving both require confirmation. */
+/**
+ * Entrant registration controls. Joining and leaving both require confirmation.
+ * Also shows the active (or next upcoming) lottery's registration and booking periods
+ * and number of winners (US 02.04.01, 02.04.03, 02.04.04).
+ */
 @Composable
 internal fun CampsiteLotterySection(
     campsite: Campsite,
@@ -118,7 +125,15 @@ internal fun CampsiteLotterySection(
         leftWaitlist = false
     }
 
+    // The lottery to describe: the one open now, otherwise the next one to open.
+    val shownLottery = activeLottery ?: lotteries
+        .filter { it.state == Lottery.State.OPEN && now < it.registrationStart }
+        .minWithOrNull(compareBy<Lottery> { it.registrationStart }.thenBy { it.id })
+
     Column {
+        if (!loading && shownLottery != null) {
+            LotteryPeriods(shownLottery, isOpen = shownLottery === activeLottery)
+        }
         Button(
             onClick = {
                 val lottery = activeLottery ?: return@Button
@@ -228,5 +243,28 @@ private fun waitlistError(error: Exception, leaving: Boolean): String {
         "Lottery not found." -> "This lottery is no longer available."
         else -> "Could not ${if (leaving) "leave" else "join"} the waitlist. " +
             "Check your connection and try again."
+    }
+}
+
+@Composable
+private fun LotteryPeriods(lottery: Lottery, isOpen: Boolean) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            if (isOpen) "Lottery open" else "Upcoming lottery",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
+        Text(
+            "Registration: " + LotteryDates.formatPeriod(lottery.registrationStart, lottery.registrationEnd),
+            fontSize = 14.sp
+        )
+        Text(
+            "Booking: " + LotteryDates.formatPeriod(lottery.bookingStart, lottery.bookingEnd),
+            fontSize = 14.sp
+        )
+        Text(
+            "Winners drawn: ${lottery.winnerCount}",
+            fontSize = 14.sp
+        )
     }
 }
