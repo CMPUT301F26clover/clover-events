@@ -56,6 +56,7 @@ fun RegisterCampsiteScreen(
     var occupancy by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var rules by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
 
     Column(
@@ -112,6 +113,13 @@ fun RegisterCampsiteScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
+        OutlinedTextField(
+            value = tags,
+            onValueChange = { tags = it },
+            label = { Text("Tags (comma separated, e.g. lake, pet friendly)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         // show the error message if there is one
         if (error != "") {
             Text(text = error, color = MaterialTheme.colorScheme.error)
@@ -146,7 +154,8 @@ fun RegisterCampsiteScreen(
                         description = description.trim(),
                         maxOccupancy = occupancy.trim().toInt(),
                         price = price.trim().toDouble(),
-                        rules = rules.trim()
+                        rules = rules.trim(),
+                        tags = parseTags(tags)
                     )
                     scope.launch {
                         repository.addCampsite(campsite)
@@ -158,6 +167,24 @@ fun RegisterCampsiteScreen(
             }
         }
     }
+}
+
+/**
+ * Turns "lake, pet friendly, fire pit" into ["lake", "pet friendly", "fire pit"].
+ *
+ * @param text what the owner typed in the tags box
+ * @return the list of tags, with empty ones removed
+ */
+fun parseTags(text: String): List<String> {
+    val result = mutableListOf<String>()
+    val pieces = text.split(",")
+    for (piece in pieces) {
+        val tag = piece.trim()
+        if (tag != "") {
+            result.add(tag)
+        }
+    }
+    return result
 }
 
 @Preview(showBackground = true)
