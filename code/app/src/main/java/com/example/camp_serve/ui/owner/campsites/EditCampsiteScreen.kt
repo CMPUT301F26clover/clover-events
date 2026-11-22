@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 /*
  * EditCampsiteScreen.kt
- * Lets an owner change the details of one of their campsites (US 02.01.03).
+ * Lets an owner change the details of one of their campsites (US 02.01.03, US 02.01.02).
  * Uses the same checks as the register form (CampsiteValidation.kt).
  * TODO: editing map location, image and available dates isn't added yet.
  */
@@ -65,6 +65,7 @@ fun EditCampsiteScreen(
     var occupancy by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var rules by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf("") }
 
     // error message to show, empty means no error
     var error by remember { mutableStateOf("") }
@@ -80,6 +81,8 @@ fun EditCampsiteScreen(
             occupancy = campsite.maxOccupancy.toString()
             price = campsite.price.toString()
             rules = campsite.rules
+            // turn the list back into "lake, fire pit" for the box
+            tags = campsite.tags.joinToString(", ")
         }
         loading = false
     }
@@ -143,6 +146,13 @@ fun EditCampsiteScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            OutlinedTextField(
+                value = tags,
+                onValueChange = { tags = it },
+                label = { Text("Tags (comma separated, e.g. lake, pet friendly)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // show the error message if there is one
             if (error != "") {
                 Text(text = error, color = MaterialTheme.colorScheme.error)
@@ -176,7 +186,8 @@ fun EditCampsiteScreen(
                             description = description.trim(),
                             maxOccupancy = occupancy.trim().toInt(),
                             price = price.trim().toDouble(),
-                            rules = rules.trim()
+                            rules = rules.trim(),
+                            tags = parseTags(tags)
                         )
                         scope.launch {
                             repository.updateCampsite(updated)
