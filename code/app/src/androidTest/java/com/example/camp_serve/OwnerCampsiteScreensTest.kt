@@ -60,7 +60,7 @@ class OwnerCampsiteScreensTest {
         }
         composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").assertIsDisplayed()
         composeTestRule.onNodeWithText("Hinton").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Edit").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Edit Campsite").assertIsDisplayed()
     }
 
     // US 02.01.03: edit form is filled in with the current details
