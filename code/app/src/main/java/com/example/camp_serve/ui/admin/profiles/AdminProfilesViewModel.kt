@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.camp_serve.data.EntrantRepository
+import com.example.camp_serve.data.FirestoreEntrantRepo
+import com.example.camp_serve.data.FirestoreOwnerRepo
 import com.example.camp_serve.data.OwnerRepository
 import com.example.camp_serve.data.TempEntrantRepo
 import com.example.camp_serve.data.TempOwnerRepo
@@ -14,8 +16,8 @@ import com.example.camp_serve.model.Owner
 import kotlinx.coroutines.launch
 
 class AdminProfilesViewModel(
-    private val entrantRepo: EntrantRepository = TempEntrantRepo(),
-    private val ownerRepo: OwnerRepository = TempOwnerRepo()
+    private val entrantRepo: EntrantRepository = FirestoreEntrantRepo(entrantId = ""),
+    private val ownerRepo: OwnerRepository = FirestoreOwnerRepo(ownerId = "")
 ) : ViewModel() {
 
     var entrants by mutableStateOf<List<Entrant>>(emptyList())

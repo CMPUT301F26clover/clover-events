@@ -42,6 +42,8 @@ import androidx.compose.ui.window.Dialog
 import com.example.camp_serve.R
 
 
+
+// FireStore and repo not initialized yet this all based on sample data
 private data class ImageItem(
     val name: String,
     var type: Int
