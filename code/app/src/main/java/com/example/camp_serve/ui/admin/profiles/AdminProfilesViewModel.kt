@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.camp_serve.data.EntrantRepository
+import com.example.camp_serve.data.FirestoreEntrantRepo
+import com.example.camp_serve.data.FirestoreOwnerRepo
 import com.example.camp_serve.data.OwnerRepository
 import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.data.FirestoreOwnerRepo
