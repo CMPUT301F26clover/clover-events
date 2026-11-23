@@ -1,6 +1,8 @@
 package com.example.camp_serve.ui.owner.campsites
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,13 +25,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.camp_serve.data.CampsiteRepository
+import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.model.Campsite
+import com.example.camp_serve.model.Lottery
+import com.example.camp_serve.ui.owner.lotteries.LotteryListRow
+import com.example.camp_serve.ui.owner.lotteries.PillButton
+import kotlinx.coroutines.CancellationException
 
 /*
  * OwnerCampsiteDetailScreen.kt
  * Shows all the details of one of the owner's campsites (US 02.01.04).
- * Has an Edit button that will open the edit screen (US 02.01.03).
+ * Has an Edit button that will open the edit screen (US 02.01.03), a Create Lottery
+ * button (US 02.04.01) and a list of this campsite's lotteries.
  * TODO: show the map location, image and QR code when those are added.
  */
 
@@ -41,6 +48,10 @@ import com.example.camp_serve.model.Campsite
  * @param campsiteId id of the campsite to show
  * @param onEditClick called when the owner taps Edit
  * @param onBackClick called when the owner taps Back
+ * @param lotteryRepository where this campsite's lotteries are loaded from; null hides them
+ * @param ownerId the signed-in owner, needed to load their lotteries
+ * @param onCreateLotteryClick called when the owner taps Create Lottery
+ * @param onLotteryClick called when the owner taps one of this campsite's lotteries
  */
 @Composable
 fun OwnerCampsiteDetailScreen(
@@ -48,10 +59,29 @@ fun OwnerCampsiteDetailScreen(
     campsiteId: String,
     modifier: Modifier = Modifier,
     onEditClick: (Campsite) -> Unit = {},
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    lotteryRepository: LotteryRepository? = null,
+    ownerId: String? = null,
+    onCreateLotteryClick: (Campsite) -> Unit = {},
+    onLotteryClick: (Lottery) -> Unit = {}
 ) {
     var loading by remember { mutableStateOf(true) }
     var campsite by remember { mutableStateOf<Campsite?>(null) }
+    var lotteries by remember { mutableStateOf<List<Lottery>>(emptyList()) }
+
+    // this campsite's lotteries, kept up to date
+    LaunchedEffect(campsiteId, ownerId, lotteryRepository) {
+        if (lotteryRepository == null || ownerId.isNullOrBlank()) return@LaunchedEffect
+        try {
+            lotteryRepository.observeLotteriesForOwner(ownerId).collect { all ->
+                lotteries = all.filter { lottery -> lottery.campsites.any { it.id == campsiteId } }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            lotteries = emptyList()
+        }
+    }
 
     // load the campsite when the screen opens
     LaunchedEffect(campsiteId) {
@@ -102,11 +132,27 @@ fun OwnerCampsiteDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = { onEditClick(site) },
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Edit")
+                PillButton("Create Lottery", onClick = { onCreateLotteryClick(site) })
+                PillButton("Edit Campsite", onClick = { onEditClick(site) })
+            }
+
+            if (lotteries.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "Lotteries",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    lotteries.forEach { lottery ->
+                        LotteryListRow(lottery, onClick = { onLotteryClick(lottery) })
+                    }
+                }
             }
         }
     }

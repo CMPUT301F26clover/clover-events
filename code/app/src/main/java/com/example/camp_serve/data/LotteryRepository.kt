@@ -25,6 +25,19 @@ interface LotteryRepository {
      */
     fun observeOpenLotteriesForCampsite(campsiteId: String, ownerId: String): Flow<List<Lottery>>
 
+    /**
+     * Observes every lottery this owner created, in any state, including each one's
+     * waiting list and selection. Emits again when an entrant joins or leaves.
+     * Only call this for the authenticated owner; waiting lists are private to them.
+     */
+    fun observeLotteriesForOwner(ownerId: String): Flow<List<Lottery>>
+
+    /**
+     * Observes one lottery with its waiting list, emitting again whenever its settings
+     * change or an entrant joins or leaves. Emits null if the lottery does not exist.
+     */
+    fun observeLottery(id: String): Flow<Lottery?>
+
     /** Applies configuration only, preserving the latest stored entrants and selections. */
     suspend fun updateLottery(lottery: Lottery, requesterId: String)
     suspend fun joinLottery(id: String, entrantId: String)

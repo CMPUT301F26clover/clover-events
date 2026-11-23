@@ -46,5 +46,8 @@ internal class TestLotteryRepository(initial: List<Lottery> = emptyList()) : Lot
     override suspend fun redraw(
         id: String, requesterId: String, random: Random
     ): LotteryRepository.Progress = error("Not used")
+    override fun observeLotteriesForOwner(ownerId: String): Flow<List<Lottery>> =
+        error("Not used")
+    override fun observeLottery(id: String): Flow<Lottery?> = error("Not used")
     override fun observeChanges(id: String): Flow<Unit> = error("Not used")
 }

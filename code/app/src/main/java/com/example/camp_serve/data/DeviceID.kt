@@ -17,20 +17,25 @@ import java.util.UUID
  */
 class DeviceId(context: Context) {
 
+    // the app's saved settings, where we keep the id
+    private val prefs = context.getSharedPreferences("camp_serve_prefs", Context.MODE_PRIVATE)
+
     /**
      * Gets the id for this device. The first time, a new id is made and
      * saved, so the same id comes back every time the app is opened.
      *
      * @return this device's unique id
      */
-    private val deviceId: String = generateDeviceId()
-
-    private fun generateDeviceId(): String {
-        // Use a consistent fixed device ID for testing purposes
-        return "consistent_device_id"
-    }
-
     fun get(): String {
-        return deviceId
+        // look for an id we saved before
+        val savedId = prefs.getString("device_id", null)
+        if (savedId != null) {
+            return savedId
+        }
+
+        // first time opening the app, so make a new random id and save it
+        val newId = UUID.randomUUID().toString()
+        prefs.edit().putString("device_id", newId).apply()
+        return newId
     }
 }

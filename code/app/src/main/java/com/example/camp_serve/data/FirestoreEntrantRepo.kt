@@ -1,6 +1,7 @@
 package com.example.camp_serve.data
 
 import com.example.camp_serve.model.Entrant
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -25,6 +26,9 @@ class FirestoreEntrantRepo(
 
     private companion object {
         const val COLLECTION = "entrants"
+
+        // Firestore allows at most 30 values in one whereIn filter.
+        const val MAX_IDS_PER_QUERY = 30
 
     }
 
@@ -69,5 +73,21 @@ class FirestoreEntrantRepo(
 
     override suspend fun getAllEntrants(): List<Entrant> {
         return db.collection(COLLECTION).get().await().toObjects(Entrant::class.java)
+    }
+
+    /**
+     * Loads entrants by document id, 30 at a time (Firestore's whereIn limit).
+     * Does not depend on [entrantId], so an owner can use this to show waitlist names.
+     */
+    override suspend fun getEntrantsByIds(ids: Collection<String>): List<Entrant> {
+        val wanted = ids.filter { it.isNotBlank() && '/' !in it }.distinct()
+        return wanted.chunked(MAX_IDS_PER_QUERY).flatMap { chunk ->
+            db.collection(COLLECTION)
+                .whereIn(FieldPath.documentId(), chunk)
+                .get().await()
+                .documents.mapNotNull { doc ->
+                    doc.toObject(Entrant::class.java)?.let { it.copy(id = it.id.ifBlank { doc.id }) }
+                }
+        }
     }
 }

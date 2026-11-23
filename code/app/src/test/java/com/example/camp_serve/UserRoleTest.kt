@@ -54,9 +54,16 @@ class UserRoleTest {
     }
 
     @Test
-    fun determineUserRoles_nonExistentDevice_defaultsToEntrantSet() = runBlocking {
-        val result = UserRole.determineUserRoles("non_existent_device_id_99999")
-        Assert.assertEquals(setOf(UserRole.ENTRANT), result)
-        Assert.assertTrue(result.isNotEmpty())
+    fun determineUserRoles_nonExistentDevice_getsEntrantAndOwner() = runBlocking {
+        var userWasCreated = false
+
+        val result = UserRole.determineUserRoles(
+            "non_existent_device_id_99999",
+            loadUser = { null },                    // pretend no users doc exists
+            createUser = { userWasCreated = true }  // fake save, so we don't touch Firebase
+        )
+
+        Assert.assertEquals(UserRole.DEFAULT_ROLES, result)
+        Assert.assertTrue(userWasCreated)
     }
 }
