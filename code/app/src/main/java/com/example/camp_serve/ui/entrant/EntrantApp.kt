@@ -17,7 +17,6 @@ import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 
 /**
  * Top-level entrant application navigation container.
- * Manages navigation between entrant screens.
  *
  * @param campsiteRepository repository for fetching campsite data
  * @param entrantRepository repository for managing entrant profile data
