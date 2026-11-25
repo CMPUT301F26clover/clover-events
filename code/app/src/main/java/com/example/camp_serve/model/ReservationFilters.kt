@@ -1,6 +1,8 @@
 package com.example.camp_serve.model
 
-import java.time.LocalDate
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /*
  * ReservationFilters.kt
@@ -16,7 +18,9 @@ import java.time.LocalDate
  * @return today's date
  */
 fun todayString(): String {
-    return LocalDate.now().toString()
+    // "yyyy-MM-dd" gives the same format as reservation dates, e.g. "2026-11-25"
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    return format.format(Date())
 }
 
 /**
