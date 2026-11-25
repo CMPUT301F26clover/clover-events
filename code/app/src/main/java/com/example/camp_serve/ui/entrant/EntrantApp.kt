@@ -1,7 +1,12 @@
 package com.example.camp_serve.ui.entrant
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
@@ -19,6 +24,7 @@ import com.example.camp_serve.ui.entrant.campsites.CampsiteDetailScreen
 import com.example.camp_serve.ui.entrant.campsites.CampsitesScreen
 import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 import com.example.camp_serve.ui.entrant.reservations.MyReservationsScreen
+import kotlin.String
 
 /**
  * Top-level entrant application navigation container.
@@ -27,6 +33,7 @@ import com.example.camp_serve.ui.entrant.reservations.MyReservationsScreen
  * @param entrantRepository repository for managing entrant profile data
  * @param lotteryRepository lottery storage; null uses the app's default Firestore database
  * @param reservationRepository where the entrant's reservations are loaded from
+ * @param startCampsiteId id of a campsite to open right away, e.g. from a scanned QR code
  */
 @Composable
 fun EntrantApp(
@@ -34,13 +41,23 @@ fun EntrantApp(
     campsiteRepository: CampsiteRepository = remember { TempCampsiteRepo() },
     entrantRepository: EntrantRepository = remember { TempEntrantRepo() },
     lotteryRepository: LotteryRepository? = null,
-    reservationRepository: ReservationRecordRepository = remember { FirestoreReservationRecordRepo() }
+    reservationRepository: ReservationRecordRepository = remember { FirestoreReservationRecordRepo() },
+    startCampsiteId: String? = null
 ) {
     val navController = rememberNavController()
 
     // this device's id, so we know whose reservations to load
     val context = LocalContext.current
     val entrantId = remember { DeviceId(context).get() }
+
+    // open the scanned campsite once (not again after the screen rotates)
+    var openedScannedCampsite by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(startCampsiteId) {
+        if (startCampsiteId != null && !openedScannedCampsite) {
+            openedScannedCampsite = true
+            navController.navigate("campsite_detail/$startCampsiteId")
+        }
+    }
 
     NavHost(
         navController = navController,

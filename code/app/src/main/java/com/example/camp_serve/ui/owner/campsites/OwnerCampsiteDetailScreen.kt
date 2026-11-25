@@ -38,7 +38,7 @@ import kotlinx.coroutines.CancellationException
  * Shows all the details of one of the owner's campsites (US 02.01.04).
  * Has an Edit button that will open the edit screen (US 02.01.03), a Create Lottery
  * button (US 02.04.01) and a list of this campsite's lotteries.
- * TODO: show the map location, image and QR code when those are added.
+ * TODO: show the map location, and image when those are added.
  */
 
 /**
@@ -114,6 +114,16 @@ fun OwnerCampsiteDetailScreen(
                 color = MaterialTheme.colorScheme.primary
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // action buttons stacked under the name, like the storyboard
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillButton("Create Lottery", onClick = { onCreateLotteryClick(site) })
+                PillButton("Edit Campsite", onClick = { onEditClick(site) })
+                // opens the QR code with Save and Share (US 02.02.01)
+                DownloadQrCodeButton(campsite = site)
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             DetailRow("Location", site.location)
@@ -130,15 +140,7 @@ fun OwnerCampsiteDetailScreen(
                 DetailRow("Available dates", site.availableDates.joinToString(", "))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                PillButton("Create Lottery", onClick = { onCreateLotteryClick(site) })
-                PillButton("Edit Campsite", onClick = { onEditClick(site) })
-            }
 
             if (lotteries.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(20.dp))
