@@ -23,6 +23,7 @@ import com.example.camp_serve.ui.admin.AdminApp
 import com.example.camp_serve.ui.entrant.EntrantApp
 import com.example.camp_serve.ui.owner.OwnerApp
 import com.example.camp_serve.ui.theme.CampserveTheme
+import com.example.camp_serve.service.CampsiteQrCode
 
 class MainActivity : ComponentActivity() {
 
@@ -31,6 +32,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val deviceId = DeviceId(this).get()
+        // set if the app was opened by scanning a campsite QR code (US 02.02.01)
+        val scannedCampsiteId = CampsiteQrCode.campsiteIdFrom(intent?.data?.toString())
 
         setContent {
             CampserveTheme {
@@ -42,7 +45,10 @@ class MainActivity : ComponentActivity() {
                         val roles = UserRole.determineUserRoles(deviceId)
                         userRoles = roles
                         // Automatically select role if user only has 1 role
-                        if (roles.size == 1) {
+                        if (scannedCampsiteId != null && UserRole.ENTRANT in roles) {
+                            selectedRole = UserRole.ENTRANT
+                        } else if (roles.size == 1) {
+                            // Automatically select role if user only has 1 role
                             selectedRole = roles.first()
                         }
                     }
