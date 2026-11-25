@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Folders the FileProvider can share. Used to share campsite QR codes (US 02.02.01). -->
+<paths>
+    <cache-path name="qr_codes" path="qr_codes/" />
+</paths>

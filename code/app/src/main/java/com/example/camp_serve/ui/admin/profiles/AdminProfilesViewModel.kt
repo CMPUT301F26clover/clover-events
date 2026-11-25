@@ -9,8 +9,6 @@ import com.example.camp_serve.data.EntrantRepository
 import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.data.FirestoreOwnerRepo
 import com.example.camp_serve.data.OwnerRepository
-import com.example.camp_serve.data.FirestoreEntrantRepo
-import com.example.camp_serve.data.FirestoreOwnerRepo
 import com.example.camp_serve.model.Entrant
 import com.example.camp_serve.model.Owner
 import kotlinx.coroutines.launch
