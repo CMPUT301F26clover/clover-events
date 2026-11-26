@@ -34,6 +34,7 @@ import com.example.camp_serve.model.cancelledReservations
 import com.example.camp_serve.model.pastReservations
 import com.example.camp_serve.model.todayString
 import kotlinx.coroutines.launch
+import androidx.compose.material3.Button
 
 /*
  * MyReservationsScreen.kt
@@ -115,7 +116,13 @@ fun MyReservationsScreen(
                 Text("No past reservations.")
             } else {
                 for (reservation in past) {
-                    ReservationRow(reservation, onClick = { onReservationClick(reservation) })
+                    ReservationRow(
+                        reservation,
+                        onClick = { onReservationClick(reservation) },
+                        buttonText = "Rate / review this stay",
+                        onButtonClick = { onReservationClick(reservation) }
+                    )
+
                 }
             }
 
@@ -174,7 +181,9 @@ fun MyReservationsScreen(
 fun ReservationRow(
     reservation: Reservation,
     showEntrant: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    buttonText: String? = null,
+    onButtonClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -189,6 +198,12 @@ fun ReservationRow(
                 Text(text = "Booked by: " + reservation.entrantName)
             }
             Text(text = "Status: " + reservation.status)
+            if (buttonText != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onButtonClick) {
+                    Text(buttonText)
+                }
+            }
         }
     }
 }
