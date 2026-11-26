@@ -12,8 +12,8 @@ import org.junit.Test
 
 /*
  * MyReservationsScreenTest.kt
- * Intent tests for the entrant's My Reservations screen (US 01.06.01, US 01.06.02)
- * and the button that opens it from the campsites screen.
+ * Intent tests for the entrant's My Reservations screen (US 01.06.01, US 01.06.02),
+ * cancelling a reservation (US 01.07.01) and the button that opens the screen.
  * Uses TempReservationRecordRepo so the tests don't need Firestore.
  */
 class MyReservationsScreenTest {
@@ -63,6 +63,41 @@ class MyReservationsScreenTest {
         }
         composeTestRule.onNodeWithText("No active reservations.").assertIsDisplayed()
         composeTestRule.onNodeWithText("No past reservations.").assertIsDisplayed()
+    }
+
+    // US 01.07.01: cancelling moves the reservation to the Cancelled section
+    @Test
+    fun cancel_yes_movesToCancelled() {
+        composeTestRule.setContent {
+            MyReservationsScreen(
+                repository = TempReservationRecordRepo(),
+                entrantId = "fake-id-01",
+                today = "2026-11-25"
+            )
+        }
+        composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()
+        composeTestRule.onNodeWithText("Cancel this reservation?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Yes, cancel").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("No active reservations.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Status: cancelled").assertIsDisplayed()
+    }
+
+    // US 01.07.01: choosing "Keep it" doesn't cancel anything
+    @Test
+    fun cancel_keepIt_staysActive() {
+        composeTestRule.setContent {
+            MyReservationsScreen(
+                repository = TempReservationRecordRepo(),
+                entrantId = "fake-id-01",
+                today = "2026-11-25"
+            )
+        }
+        composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()
+        composeTestRule.onNodeWithText("Keep it").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Tap a reservation to cancel it.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No cancelled reservations.").assertIsDisplayed()
     }
 
     // navigation: tapping My Reservations on the campsites screen opens it
