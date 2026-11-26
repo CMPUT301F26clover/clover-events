@@ -13,7 +13,7 @@ import org.junit.Test
 
 /*
  * CampsiteQrCodeScreenTest.kt
- * Intent tests for campsite QR codes (US 02.02.01).
+ * Intent tests for campsite QR codes.
  * Uses TempCampsiteRepo so the tests don't need Firestore.
  */
 class CampsiteQrCodeScreenTest {

@@ -4,6 +4,7 @@ import com.example.camp_serve.data.FirestoreLotteryRepo
 import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.model.Lottery
 import com.example.camp_serve.model.LotteryResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -20,7 +21,11 @@ import kotlin.random.Random
  *
  * Object overloads remain available for local previews/tests without persistence.
  * Scheduling runs in a caller-owned scope, not while the app process is stopped.
- * Notification callbacks are integration points while NotificationService is empty.
+ *
+ * After a saved draw, [onDrawSaved] runs once with the committed result; the owner app
+ * passes [NotificationService.sendDrawResult] so winners and other entrants are notified
+ * (US 02.05.01, 01.03.01, 01.03.02). It is retried a few times if it fails, and a
+ * failure never undoes the saved draw or stops the monitor.
  */
 class LotteryDrawService(
     private val scope: CoroutineScope,
@@ -30,7 +35,9 @@ class LotteryDrawService(
     private val notifyWinner: (NotificationService, Lottery, String) -> Unit = { _, _, _ -> },
     private val notifyLoser: (NotificationService, Lottery, String) -> Unit = { _, _, _ -> },
     private val onResult: (Lottery, LotteryResult) -> Unit = { _, _ -> },
-    repository: LotteryRepository? = null
+    repository: LotteryRepository? = null,
+    private val onDrawSaved: (suspend (Lottery, LotteryResult) -> Unit)? = null,
+    private val retryDelayMillis: Long = 2_000
 ) {
     // Local tests do not initialize Firebase. Persistent calls use the app's default database.
     private val storage by lazy { repository ?: FirestoreLotteryRepo(clock = clock) }
@@ -45,7 +52,7 @@ class LotteryDrawService(
             while (isActive) {
                 val progress = storage.advance(lotteryId, random)
                 val lottery = progress.lottery
-                progress.result?.let { publish(lottery, it) }
+                progress.result?.let { publishSaved(lottery, it) }
                 if (lottery.state == Lottery.State.CLOSED) break
                 // A document event wakes the monitor without cancelling a draw in progress.
                 withTimeoutOrNull((nextChange(lottery) - clock()).coerceAtLeast(1L)) {
@@ -62,13 +69,13 @@ class LotteryDrawService(
     suspend fun draw(lotteryId: String): LotteryResult {
         val progress = storage.advance(lotteryId, random)
         val result = checkNotNull(progress.result) { "The lottery is not ready for a draw." }
-        return publish(progress.lottery, result)
+        return publishSaved(progress.lottery, result)
     }
 
     /** Creates another saved result, retaining the previous draw in history. */
     suspend fun redraw(lotteryId: String, requesterId: String): LotteryResult {
         val progress = storage.redraw(lotteryId, requesterId, random)
-        return publish(progress.lottery, checkNotNull(progress.result))
+        return publishSaved(progress.lottery, checkNotNull(progress.result))
     }
 
     /** Monitors a local object only. Use start(lottery.id) for Firestore storage. */
@@ -117,10 +124,31 @@ class LotteryDrawService(
         drawNumber = lottery.drawNumber
     )
 
+    /** Publishes a committed result, then runs [onDrawSaved] (with retries). */
+    private suspend fun publishSaved(lottery: Lottery, result: LotteryResult): LotteryResult {
+        publish(lottery, result)
+        val hook = onDrawSaved ?: return result
+        repeat(DRAW_HOOK_ATTEMPTS) { attempt ->
+            try {
+                hook(lottery, result)
+                return result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                if (attempt < DRAW_HOOK_ATTEMPTS - 1) delay(retryDelayMillis)
+            }
+        }
+        return result
+    }
+
     private fun publish(lottery: Lottery, result: LotteryResult): LotteryResult {
         result.winnerIds.forEach { notifyWinner(notificationService, lottery, it) }
         result.loserIds.forEach { notifyLoser(notificationService, lottery, it) }
         onResult(lottery, result)
         return result
+    }
+
+    private companion object {
+        const val DRAW_HOOK_ATTEMPTS = 3
     }
 }

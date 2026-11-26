@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.input.ImeAction
  * Entrant profile screen. Shows the profile first (name, email, phone).
  * "Edit" switches to a form for changing name, email and phone (US 01.07.03).
  * "Delete Profile" asks for confirmation, then deletes the profile (US 01.08.01).
+ * "Receive notifications" turns notifications on or off and saves it (US 01.10.01).
  * Outstanding issues: no navigation yet and the app policy link
  *
  * @param repository where the profile is loaded from and saved to
@@ -70,6 +72,7 @@ fun ProfileScreen (
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
+    var notificationStatus by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
@@ -267,6 +270,42 @@ fun ProfileScreen (
 
                 HorizontalDivider()
 
+                // notification opt-out (US 01.10.01)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Receive notifications", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Lottery results and messages from campsite owners",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = current.notificationEnabled,
+                        onCheckedChange = { enabled ->
+                            val before = current
+                            val updated = current.copy(notificationEnabled = enabled)
+                            current = updated
+                            notificationStatus = null
+                            scope.launch {
+                                notificationStatus = try {
+                                    repository.updateEntrant(updated)
+                                    notificationToggleMessage(enabled)
+                                } catch (e: Exception) {
+                                    current = before
+                                    "Could not change your notification setting. Check your connection."
+                                }
+                            }
+                        }
+                    )
+                }
+                notificationStatus?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+
+                HorizontalDivider()
+
                 TextButton(onClick = { showDeleteDialog = true }) {
                     Text("Delete Profile", color = MaterialTheme.colorScheme.error)
                 }
@@ -311,3 +350,8 @@ private fun DetailRow(label: String, value: String) {
         Text(text = value)
     }
 }
+
+/** Confirmation shown after the entrant turns notifications on or off (US 01.10.01). */
+fun notificationToggleMessage(enabled: Boolean): String =
+    if (enabled) "Notifications are on. You will receive lottery results and owner messages."
+    else "Notifications are off. You won't receive notifications from the app or campsite owners."
