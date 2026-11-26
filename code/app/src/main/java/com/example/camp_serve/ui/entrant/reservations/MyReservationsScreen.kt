@@ -40,7 +40,8 @@ import kotlinx.coroutines.launch
  * MyReservationsScreen.kt
  * Shows an entrant their active reservations (US 01.06.01), their past
  * reservations (US 01.06.02) and cancelled ones. Tapping an active
- * reservation lets the entrant cancel it (US 01.07.01). Past reservations
+ * reservation lets the entrant cancel it (US 01.07.01). Active and cancelled
+ * ones have a button to view the confirmation (US 01.05.01), and past ones
  * have a button to rate and review the stay (US 01.13.01, US 01.13.02).
  * Outstanding issues: none.
  */
@@ -52,6 +53,7 @@ import kotlinx.coroutines.launch
  * @param entrantId the entrant's device id
  * @param today today's date as "YYYY-MM-DD" (tests can pass a fixed date)
  * @param onReservationClick called when the entrant taps a past reservation (opens rate / review)
+ * @param onConfirmationClick called when the entrant taps "View confirmation"
  */
 @Composable
 fun MyReservationsScreen(
@@ -59,7 +61,8 @@ fun MyReservationsScreen(
     entrantId: String,
     modifier: Modifier = Modifier,
     today: String = todayString(),
-    onReservationClick: (Reservation) -> Unit = {}
+    onReservationClick: (Reservation) -> Unit = {},
+    onConfirmationClick: (Reservation) -> Unit = {}
 ) {
     var loading by remember { mutableStateOf(true) }
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -95,7 +98,7 @@ fun MyReservationsScreen(
             val past = pastReservations(allReservations, today)
             val cancelled = cancelledReservations(allReservations)
 
-            // active section (tap one to cancel it)
+            // active section (tap one to cancel it, or view its confirmation)
             Text(text = "Active", fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             if (active.isEmpty()) {
@@ -104,7 +107,12 @@ fun MyReservationsScreen(
                 Text("Tap a reservation to cancel it.")
                 Spacer(modifier = Modifier.height(8.dp))
                 for (reservation in active) {
-                    ReservationRow(reservation, onClick = { reservationToCancel = reservation })
+                    ReservationRow(
+                        reservation,
+                        onClick = { reservationToCancel = reservation },
+                        buttonText = "View confirmation",
+                        onButtonClick = { onConfirmationClick(reservation) }
+                    )
                 }
             }
 
@@ -135,7 +143,11 @@ fun MyReservationsScreen(
                 Text("No cancelled reservations.")
             } else {
                 for (reservation in cancelled) {
-                    ReservationRow(reservation)
+                    ReservationRow(
+                        reservation,
+                        buttonText = "View confirmation",
+                        onButtonClick = { onConfirmationClick(reservation) }
+                    )
                 }
             }
         }
@@ -200,7 +212,7 @@ fun ReservationRow(
                 Text(text = "Booked by: " + reservation.entrantName)
             }
             Text(text = "Status: " + reservation.status)
-            // optional button, e.g. "Rate / review this stay" on past reservations
+            // optional button, e.g. "View confirmation" or "Rate / review this stay"
             if (buttonText != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(onClick = onButtonClick) {
