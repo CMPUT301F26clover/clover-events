@@ -3,6 +3,7 @@ package com.example.camp_serve.ui.owner
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -30,7 +31,9 @@ import com.example.camp_serve.data.EntrantRepository
 import com.example.camp_serve.data.FirestoreCampsiteRepo
 import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.data.FirestoreLotteryRepo
+import com.example.camp_serve.data.FirestoreReservationRecordRepo
 import com.example.camp_serve.data.LotteryRepository
+import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.service.LotteryDrawService
 import com.example.camp_serve.service.LotteryMonitor
 import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
@@ -41,6 +44,7 @@ import com.example.camp_serve.ui.owner.lotteries.CreateLotteryScreen
 import com.example.camp_serve.ui.owner.lotteries.EditLotteryScreen
 import com.example.camp_serve.ui.owner.lotteries.LotteriesScreen
 import com.example.camp_serve.ui.owner.lotteries.LotteryDetailScreen
+import com.example.camp_serve.ui.owner.reservations.OwnerReservationsScreen
 import com.example.camp_serve.ui.theme.CampPurpleSecondary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -52,9 +56,10 @@ import kotlinx.coroutines.cancel
 /*
  * OwnerApp.kt
  * Navigation for the campsite owner side of the app.
- * Tabs: Campsites (list -> register, list -> details -> edit / create lottery)
- * and Lotteries (list -> create, list -> lottery details + waitlist -> edit).
- * Campsites and lotteries are saved in Firestore.
+ * Tabs: Campsites (list -> register, list -> details -> edit / create lottery),
+ * Lotteries (list -> create, list -> lottery details + waitlist -> edit)
+ * and Reservations (active / past / cancelled).
+ * Campsites, lotteries and reservations are saved in Firestore.
  */
 
 private const val CREATE_LOTTERY_ROUTE = "create_lottery?campsiteId={campsiteId}"
@@ -74,6 +79,7 @@ private val formRoutes = setOf(
  * @param repository where the owner's campsites are saved (Firestore by default)
  * @param lotteryRepository where lotteries and waitlists are saved (Firestore by default)
  * @param entrantRepository used to show entrant names on waitlists
+ * @param reservationRepository where reservations for the owner's campsites are loaded from
  * @param monitorDraws whether this app should draw winners when registration closes
  */
 @Composable
@@ -85,6 +91,7 @@ fun OwnerApp(
     // FirestoreEntrantRepo needs an id for its own profile methods; only the
     // id lookup (getEntrantsByIds) is used here, which does not depend on it.
     entrantRepository: EntrantRepository = remember(ownerId) { FirestoreEntrantRepo(ownerId) },
+    reservationRepository: ReservationRecordRepository = remember { FirestoreReservationRecordRepo() },
     monitorDraws: Boolean = true
 ) {
     val navController = rememberNavController()
@@ -221,21 +228,39 @@ fun OwnerApp(
                     onCancel = { navController.popBackStack() }
                 )
             }
+
+            // reservations for the owner's campsites (US 02.07.01, 02.07.02, 02.07.03)
+            composable("owner_reservations") {
+                OwnerReservationsScreen(
+                    repository = reservationRepository,
+                    ownerId = ownerId
+                )
+            }
         }
     }
 }
 
-/** Purple bottom bar from the storyboard, with the two owner tabs that exist so far. */
+/** Purple bottom bar from the storyboard, with the owner tabs. */
 @Composable
 private fun OwnerBottomBar(navController: NavHostController, route: String?) {
     val lotteryRoutes = setOf("lotteries", "lottery_detail/{lotteryId}")
     val items = listOf(
         Triple("my_campsites", "Campsites", Icons.Filled.Home),
-        Triple("lotteries", "Lotteries", Icons.AutoMirrored.Filled.List)
+        Triple("lotteries", "Lotteries", Icons.AutoMirrored.Filled.List),
+        Triple("owner_reservations", "Reservations", Icons.Filled.DateRange)
     )
     NavigationBar(containerColor = CampPurpleSecondary) {
         items.forEach { (target, label, icon) ->
-            val selected = if (target == "lotteries") (route ?: "") in lotteryRoutes else (route ?: "") !in lotteryRoutes
+            // work out which tab should look selected
+            val current = route ?: ""
+            var selected = false
+            if (target == "lotteries") {
+                selected = current in lotteryRoutes
+            } else if (target == "owner_reservations") {
+                selected = current == "owner_reservations"
+            } else {
+                selected = current !in lotteryRoutes && current != "owner_reservations"
+            }
             NavigationBarItem(
                 selected = selected,
                 onClick = {

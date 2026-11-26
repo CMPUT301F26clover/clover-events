@@ -1,6 +1,7 @@
 package com.example.camp_serve.data
 
 import com.example.camp_serve.model.Reservation
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -8,7 +9,7 @@ import kotlinx.coroutines.tasks.await
  * FirestoreReservationRecordRepo.kt
  * The real ReservationRecordRepository. Saves and loads reservations from
  * the "reservations" collection in Firestore.
- * Outstanding issues: none.
+ * Outstanding issues: reservations with wrong field types are skipped, not shown.
  */
 
 /**
@@ -22,7 +23,7 @@ class FirestoreReservationRecordRepo : ReservationRecordRepository {
         val result = reservations.whereEqualTo("entrantId", entrantId).get().await()
         val list = mutableListOf<Reservation>()
         for (doc in result.documents) {
-            val reservation = doc.toObject(Reservation::class.java)
+            val reservation = toReservationOrNull(doc)
             if (reservation != null) {
                 list.add(reservation)
             }
@@ -34,7 +35,7 @@ class FirestoreReservationRecordRepo : ReservationRecordRepository {
         val result = reservations.whereEqualTo("ownerId", ownerId).get().await()
         val list = mutableListOf<Reservation>()
         for (doc in result.documents) {
-            val reservation = doc.toObject(Reservation::class.java)
+            val reservation = toReservationOrNull(doc)
             if (reservation != null) {
                 list.add(reservation)
             }
@@ -46,7 +47,7 @@ class FirestoreReservationRecordRepo : ReservationRecordRepository {
         val result = reservations.whereEqualTo("campsiteId", campsiteId).get().await()
         val list = mutableListOf<Reservation>()
         for (doc in result.documents) {
-            val reservation = doc.toObject(Reservation::class.java)
+            val reservation = toReservationOrNull(doc)
             if (reservation != null) {
                 list.add(reservation)
             }
@@ -56,7 +57,7 @@ class FirestoreReservationRecordRepo : ReservationRecordRepository {
 
     override suspend fun getReservation(id: String): Reservation? {
         val doc = reservations.document(id).get().await()
-        return doc.toObject(Reservation::class.java)
+        return toReservationOrNull(doc)
     }
 
     override suspend fun addReservation(reservation: Reservation) {
@@ -71,5 +72,20 @@ class FirestoreReservationRecordRepo : ReservationRecordRepository {
     override suspend fun updateStatus(id: String, status: String) {
         // only change the status field, leave everything else the same
         reservations.document(id).update("status", status).await()
+    }
+
+    /**
+     * Turns a Firestore doc into a Reservation. If a field has the wrong type
+     * (e.g. "true" as text instead of a boolean), we skip it instead of crashing.
+     *
+     * @param doc the Firestore document
+     * @return the reservation, or null if it couldn't be read
+     */
+    private fun toReservationOrNull(doc: DocumentSnapshot): Reservation? {
+        try {
+            return doc.toObject(Reservation::class.java)
+        } catch (e: Exception) {
+            return null
+        }
     }
 }
