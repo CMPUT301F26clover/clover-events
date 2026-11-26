@@ -1,4 +1,4 @@
-package com.example.camp_serve.ui.entrant.alerts
+package com.example.camp_serve.ui.entrant.notifications
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,39 +27,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.camp_serve.data.AlertRepository
+import com.example.camp_serve.data.EntrantNotificationRepository
 import com.example.camp_serve.data.EntrantRepository
-import com.example.camp_serve.data.sampleAlerts
-import com.example.camp_serve.model.Alert
-import com.example.camp_serve.model.AlertType
+import com.example.camp_serve.data.sampleNotifications
+import com.example.camp_serve.model.EntrantNotification
+import com.example.camp_serve.model.EntrantNotificationType
 import com.example.camp_serve.model.Entrant
 import com.example.camp_serve.ui.theme.CampserveTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * Loads the entrant's alerts and notification setting, then shows [AlertsScreen].
- * Toggling the switch saves entrant.notificationEnabled (US 01.10.01).
+ * Loads the entrant's notifications and notification setting, then shows [NotificationsScreen].
+ * Toggling the switch saves entrant.notificationEnabled.
  * Outstanding issues: Reserve is not connected to the Reserve screen yet.
  *
- * @param alertRepository where alerts are loaded from
+ * @param entrantNotificationRepository where notifications are loaded from
  * @param entrantRepository where the notification opt-out is saved
- * @param onReserve called when the entrant taps Reserve on a winning alert
+ * @param onReserve called when the entrant taps Reserve on a winning notification
  */
 @Composable
-fun AlertsRoute(
-    alertRepository: AlertRepository,
+fun NotificationsRoute(
+    entrantNotificationRepository: EntrantNotificationRepository,
     entrantRepository: EntrantRepository,
     modifier: Modifier = Modifier,
-    onReserve: (Alert) -> Unit = {}
+    onReserve: (EntrantNotification) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
-    var alerts by remember { mutableStateOf<List<Alert>>(emptyList()) }
+    var notifications by remember { mutableStateOf<List<EntrantNotification>>(emptyList()) }
     var entrant by remember { mutableStateOf(Entrant()) }
 
     LaunchedEffect(Unit) {
-        alerts = alertRepository.getAlerts()
-        entrant = entrantRepository.getEntrant()
+        try {
+            notifications = entrantNotificationRepository.getNotifications()
+            entrant = entrantRepository.getEntrant()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // offline: show what loaded instead of crashing
+        }
         loading = false
     }
 
@@ -68,8 +75,8 @@ fun AlertsRoute(
             CircularProgressIndicator()
         }
     } else {
-        AlertsScreen(
-            alerts = alerts,
+        NotificationsScreen(
+            notifications = notifications,
             notificationsEnabled = entrant.notificationEnabled,
             onNotificationsToggle = { enabled ->
                 scope.launch {
@@ -85,11 +92,11 @@ fun AlertsRoute(
 }
 
 @Composable
-fun AlertsScreen(
-    alerts: List<Alert>,
+fun NotificationsScreen(
+    notifications: List<EntrantNotification>,
     notificationsEnabled: Boolean,
     onNotificationsToggle: (Boolean) -> Unit,
-    onReserve: (Alert) -> Unit,
+    onReserve: (EntrantNotification) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -99,7 +106,7 @@ fun AlertsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "Alerts",
+            "Notifications",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )
@@ -113,31 +120,32 @@ fun AlertsScreen(
             Switch(checked = notificationsEnabled, onCheckedChange = onNotificationsToggle)
         }
 
-        if (alerts.isEmpty()) {
-            Text("No alerts yet.")
+        if (notifications.isEmpty()) {
+            Text("No notifications yet.")
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(alerts) { alert -> AlertCard(alert, onReserve) }
+                items(notifications) { notification -> NotificationCard(notification, onReserve) }
             }
         }
     }
 }
 
 @Composable
-private fun AlertCard(alert: Alert, onReserve: (Alert) -> Unit) {
-    val title = when (alert.type) {
-        AlertType.WON -> "You won!"
-        AlertType.LOST -> "Not selected"
-        AlertType.RESERVED -> "Reservation confirmed"
-        AlertType.CANCELLED -> "Reservation cancelled"
+private fun NotificationCard(notification: EntrantNotification, onReserve: (EntrantNotification) -> Unit) {
+    val title = when (notification.type) {
+        EntrantNotificationType.WON -> "You won!"
+        EntrantNotificationType.LOST -> "Not selected"
+        EntrantNotificationType.RESERVED -> "Reservation confirmed"
+        EntrantNotificationType.CANCELLED -> "Reservation cancelled"
+        EntrantNotificationType.MESSAGE -> "Message from the campsite owner"
     }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text(alert.campsite, style = MaterialTheme.typography.titleMedium)
-            Text(alert.message, style = MaterialTheme.typography.bodyMedium)
-            if (alert.type == AlertType.WON) {
-                Button(onClick = { onReserve(alert) }, modifier = Modifier.padding(top = 8.dp)) {
+            Text(notification.campsite, style = MaterialTheme.typography.titleMedium)
+            Text(notification.message, style = MaterialTheme.typography.bodyMedium)
+            if (notification.type == EntrantNotificationType.WON) {
+                Button(onClick = { onReserve(notification) }, modifier = Modifier.padding(top = 8.dp)) {
                     Text("Reserve")
                 }
             }
@@ -147,10 +155,10 @@ private fun AlertCard(alert: Alert, onReserve: (Alert) -> Unit) {
 
 @Preview(showBackground = true)
 @Composable
-private fun AlertsScreenPreview() {
+private fun NotificationsScreenPreview() {
     CampserveTheme {
-        AlertsScreen(
-            alerts = sampleAlerts,
+        NotificationsScreen(
+            notifications = sampleNotifications,
             notificationsEnabled = true,
             onNotificationsToggle = {},
             onReserve = {}

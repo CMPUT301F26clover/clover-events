@@ -1,8 +1,8 @@
 package com.example.camp_serve
 
-import com.example.camp_serve.data.TempAlertRepo
+import com.example.camp_serve.data.TempEntrantNotificationRepo
 import com.example.camp_serve.data.TempReservationRepo
-import com.example.camp_serve.model.AlertType
+import com.example.camp_serve.model.EntrantNotificationType
 import com.example.camp_serve.ui.entrant.reserve.canReserve
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -43,11 +43,11 @@ class ReserveTest {
     }
 
     @Test
-    fun tempAlertRepo_returnsAlertsIncludingAWin() {
+    fun tempEntrantNotificationRepo_returnsNotificationsIncludingAWin() {
         runBlocking {
-            val alerts = TempAlertRepo().getAlerts()
-            assertEquals(4, alerts.size)
-            assertTrue(alerts.any { it.type == AlertType.WON })
+            val notifications = TempEntrantNotificationRepo().getNotifications()
+            assertEquals(4, notifications.size)
+            assertTrue(notifications.any { it.type == EntrantNotificationType.WON })
         }
     }
 }

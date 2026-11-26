@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,11 +32,14 @@ import com.example.camp_serve.data.EntrantRepository
 import com.example.camp_serve.data.FirestoreCampsiteRepo
 import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.data.FirestoreLotteryRepo
+import com.example.camp_serve.data.FirestoreNotificationRepo
 import com.example.camp_serve.data.FirestoreReservationRecordRepo
 import com.example.camp_serve.data.LotteryRepository
+import com.example.camp_serve.data.NotificationRepository
 import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.service.LotteryDrawService
 import com.example.camp_serve.service.LotteryMonitor
+import com.example.camp_serve.service.NotificationService
 import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
 import com.example.camp_serve.ui.owner.campsites.MyCampsitesScreen
 import com.example.camp_serve.ui.owner.campsites.OwnerCampsiteDetailScreen
@@ -44,6 +48,7 @@ import com.example.camp_serve.ui.owner.lotteries.CreateLotteryScreen
 import com.example.camp_serve.ui.owner.lotteries.EditLotteryScreen
 import com.example.camp_serve.ui.owner.lotteries.LotteriesScreen
 import com.example.camp_serve.ui.owner.lotteries.LotteryDetailScreen
+import com.example.camp_serve.ui.owner.notifications.SentNotificationsScreen
 import com.example.camp_serve.ui.owner.reservations.OwnerReservationsScreen
 import com.example.camp_serve.ui.theme.CampPurpleSecondary
 import kotlinx.coroutines.CancellationException
@@ -57,9 +62,9 @@ import kotlinx.coroutines.cancel
  * OwnerApp.kt
  * Navigation for the campsite owner side of the app.
  * Tabs: Campsites (list -> register, list -> details -> edit / create lottery),
- * Lotteries (list -> create, list -> lottery details + waitlist -> edit)
- * and Reservations (active / past / cancelled).
- * Campsites, lotteries and reservations are saved in Firestore.
+ * Lotteries (list -> create, list -> lottery details + waitlist -> edit / notify),
+ * Reservations (active / past / cancelled) and Notifications (notifications sent, US 02.10.02).
+ * Campsites, lotteries, reservations and notifications are saved in Firestore.
  */
 
 private const val CREATE_LOTTERY_ROUTE = "create_lottery?campsiteId={campsiteId}"
@@ -78,8 +83,10 @@ private val formRoutes = setOf(
  * @param ownerId unique ID of the owner (the device id)
  * @param repository where the owner's campsites are saved (Firestore by default)
  * @param lotteryRepository where lotteries and waitlists are saved (Firestore by default)
- * @param entrantRepository used to show entrant names on waitlists
+ * @param entrantRepository used to show entrant names on waitlists and check opt-outs
  * @param reservationRepository where reservations for the owner's campsites are loaded from
+ * @param notificationRepository where sent notifications are saved (Firestore by default)
+ * @param notificationService sends draw results and waitlist messages
  * @param monitorDraws whether this app should draw winners when registration closes
  */
 @Composable
@@ -92,6 +99,10 @@ fun OwnerApp(
     // id lookup (getEntrantsByIds) is used here, which does not depend on it.
     entrantRepository: EntrantRepository = remember(ownerId) { FirestoreEntrantRepo(ownerId) },
     reservationRepository: ReservationRecordRepository = remember { FirestoreReservationRecordRepo() },
+    notificationRepository: NotificationRepository = remember { FirestoreNotificationRepo() },
+    notificationService: NotificationService = remember(notificationRepository, entrantRepository) {
+        NotificationService(notificationRepository, entrantRepository)
+    },
     monitorDraws: Boolean = true
 ) {
     val navController = rememberNavController()
@@ -99,7 +110,7 @@ fun OwnerApp(
     val route = backStackEntry?.destination?.route
 
     if (monitorDraws) {
-        DrawMonitor(ownerId, lotteryRepository)
+        DrawMonitor(ownerId, lotteryRepository, notificationService)
     }
 
     Scaffold(
@@ -212,7 +223,8 @@ fun OwnerApp(
                     ownerId = ownerId,
                     lotteryId = lotteryId,
                     onEditClick = { navController.navigate("edit_lottery/$it") },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    notificationService = notificationService
                 )
             }
 
@@ -236,6 +248,14 @@ fun OwnerApp(
                     ownerId = ownerId
                 )
             }
+
+            // notifications the owner has sent, including draw results (US 02.10.02)
+            composable("sent_notifications") {
+                SentNotificationsScreen(
+                    repository = notificationRepository,
+                    ownerId = ownerId
+                )
+            }
         }
     }
 }
@@ -247,7 +267,8 @@ private fun OwnerBottomBar(navController: NavHostController, route: String?) {
     val items = listOf(
         Triple("my_campsites", "Campsites", Icons.Filled.Home),
         Triple("lotteries", "Lotteries", Icons.AutoMirrored.Filled.List),
-        Triple("owner_reservations", "Reservations", Icons.Filled.DateRange)
+        Triple("owner_reservations", "Reservations", Icons.Filled.DateRange),
+        Triple("sent_notifications", "Notifications", Icons.Filled.Notifications)
     )
     NavigationBar(containerColor = CampPurpleSecondary) {
         items.forEach { (target, label, icon) ->
@@ -256,10 +277,11 @@ private fun OwnerBottomBar(navController: NavHostController, route: String?) {
             var selected = false
             if (target == "lotteries") {
                 selected = current in lotteryRoutes
-            } else if (target == "owner_reservations") {
-                selected = current == "owner_reservations"
+            } else if (target == "owner_reservations" || target == "sent_notifications") {
+                selected = current == target
             } else {
-                selected = current !in lotteryRoutes && current != "owner_reservations"
+                selected = current !in lotteryRoutes &&
+                    current != "owner_reservations" && current != "sent_notifications"
             }
             NavigationBarItem(
                 selected = selected,
@@ -286,16 +308,25 @@ private fun OwnerBottomBar(navController: NavHostController, route: String?) {
 
 /**
  * While the owner app is open, watches the owner's lotteries and draws winners
- * automatically when each one's registration period ends (US 02.04.05).
+ * automatically when each one's registration period ends (US 02.05.01), then
+ * notifies winners and entrants who were not selected (US 01.03.01, 01.03.02).
  * Storage errors stop that lottery's monitor; it restarts on the next list update.
  */
 @Composable
-private fun DrawMonitor(ownerId: String, lotteryRepository: LotteryRepository) {
+private fun DrawMonitor(
+    ownerId: String,
+    lotteryRepository: LotteryRepository,
+    notificationService: NotificationService
+) {
     val scope = remember(ownerId, lotteryRepository) {
         CoroutineScope(SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, _ -> })
     }
-    val monitor = remember(scope) {
-        val service = LotteryDrawService(scope, repository = lotteryRepository)
+    val monitor = remember(scope, notificationService) {
+        val service = LotteryDrawService(
+            scope,
+            repository = lotteryRepository,
+            onDrawSaved = { drawn, result -> notificationService.sendDrawResult(drawn, result) }
+        )
         LotteryMonitor(service::start)
     }
     DisposableEffect(scope) {
