@@ -136,6 +136,7 @@ fun OwnerApp(
             }
 
             // details of one campsite (US 02.01.04), with Create Lottery (US 02.04.01)
+            // and booked dates (US 02.06.01)
             composable("campsite_detail/{campsiteId}") { entry ->
                 val campsiteId = entry.arguments?.getString("campsiteId") ?: ""
                 OwnerCampsiteDetailScreen(
@@ -152,7 +153,9 @@ fun OwnerApp(
                     },
                     onLotteryClick = { lottery ->
                         navController.navigate("lottery_detail/" + lottery.id)
-                    }
+                    },
+                    // shows the campsite's booked dates (US 02.06.01)
+                    reservationRepository = reservationRepository
                 )
             }
 
