@@ -26,9 +26,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.LotteryRepository
+import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.model.Campsite
 import com.example.camp_serve.model.Lottery
+import com.example.camp_serve.model.Reservation
+import com.example.camp_serve.model.activeReservations
+import com.example.camp_serve.model.todayString
 import com.example.camp_serve.ui.owner.lotteries.LotteryListRow
 import com.example.camp_serve.ui.owner.lotteries.PillButton
 import kotlinx.coroutines.CancellationException
@@ -37,7 +41,8 @@ import kotlinx.coroutines.CancellationException
  * OwnerCampsiteDetailScreen.kt
  * Shows all the details of one of the owner's campsites (US 02.01.04).
  * Has an Edit button that will open the edit screen (US 02.01.03), a Create Lottery
- * button (US 02.04.01) and a list of this campsite's lotteries.
+ * button (US 02.04.01), the dates already booked (US 02.06.01) and a list of
+ * this campsite's lotteries.
  * TODO: show the map location, and image when those are added.
  */
 
@@ -52,6 +57,8 @@ import kotlinx.coroutines.CancellationException
  * @param ownerId the signed-in owner, needed to load their lotteries
  * @param onCreateLotteryClick called when the owner taps Create Lottery
  * @param onLotteryClick called when the owner taps one of this campsite's lotteries
+ * @param reservationRepository where this campsite's reservations are loaded from; null hides booked dates
+ * @param today today's date as "YYYY-MM-DD" (tests can pass a fixed date)
  */
 @Composable
 fun OwnerCampsiteDetailScreen(
@@ -63,11 +70,14 @@ fun OwnerCampsiteDetailScreen(
     lotteryRepository: LotteryRepository? = null,
     ownerId: String? = null,
     onCreateLotteryClick: (Campsite) -> Unit = {},
-    onLotteryClick: (Lottery) -> Unit = {}
+    onLotteryClick: (Lottery) -> Unit = {},
+    reservationRepository: ReservationRecordRepository? = null,
+    today: String = todayString()
 ) {
     var loading by remember { mutableStateOf(true) }
     var campsite by remember { mutableStateOf<Campsite?>(null) }
     var lotteries by remember { mutableStateOf<List<Lottery>>(emptyList()) }
+    var booked by remember { mutableStateOf<List<Reservation>>(emptyList()) }
 
     // this campsite's lotteries, kept up to date
     LaunchedEffect(campsiteId, ownerId, lotteryRepository) {
@@ -87,6 +97,15 @@ fun OwnerCampsiteDetailScreen(
     LaunchedEffect(campsiteId) {
         campsite = repository.getCampsite(campsiteId)
         loading = false
+    }
+
+    // load the booked (active) reservations for this campsite (US 02.06.01)
+    LaunchedEffect(campsiteId, reservationRepository) {
+        if (reservationRepository != null) {
+            val all = reservationRepository.getReservationsForCampsite(campsiteId)
+            // earliest dates first
+            booked = activeReservations(all, today).sortedBy { it.startDate }
+        }
     }
 
     Column(
@@ -140,7 +159,18 @@ fun OwnerCampsiteDetailScreen(
                 DetailRow("Available dates", site.availableDates.joinToString(", "))
             }
 
-
+            // booked dates, only if we were given a reservation repository (US 02.06.01)
+            if (reservationRepository != null) {
+                Text(text = "Booked dates", fontWeight = FontWeight.Bold)
+                if (booked.isEmpty()) {
+                    Text("No upcoming bookings.")
+                } else {
+                    for (reservation in booked) {
+                        Text(reservation.startDate + " to " + reservation.endDate + " (" + reservation.entrantName + ")")
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             if (lotteries.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(20.dp))
