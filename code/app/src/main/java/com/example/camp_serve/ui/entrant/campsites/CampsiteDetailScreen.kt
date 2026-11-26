@@ -35,6 +35,8 @@ import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.model.Campsite
+import com.example.camp_serve.data.ReviewRepository
+import com.example.camp_serve.ui.entrant.reviews.CampsiteReviewsSection
 
 /**
  * Screen that displays detailed information for a selected campsite.
@@ -44,6 +46,7 @@ import com.example.camp_serve.model.Campsite
  * @param repository Data source for fetching campsite details (defaults to [TempCampsiteRepo])
  * @param lotteryRepository Lottery storage; null uses the app's default Firestore database
  * @param onBackClick Callback when the user taps the back button
+ * @param reviewRepository Review storage; null hides the reviews section
  */
 @Composable
 fun CampsiteDetailScreen(
@@ -51,6 +54,7 @@ fun CampsiteDetailScreen(
     navController: NavController,
     repository: CampsiteRepository = remember { TempCampsiteRepo() },
     lotteryRepository: LotteryRepository? = null,
+    reviewRepository: ReviewRepository? = null,
     onBackClick: () -> Unit = { navController.popBackStack() }
 ) {
     var campsite by remember { mutableStateOf<Campsite?>(null) }
@@ -233,6 +237,13 @@ fun CampsiteDetailScreen(
                     color = Color.DarkGray
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (reviewRepository != null) {
+                    CampsiteReviewsSection(
+                        campsiteId = site.id,
+                        repository = reviewRepository
+                    )
+                }
             }
         }
     }
