@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
  * @param ownerId id of the owner registering it
  * @param onSaved called after the campsite is saved
  * @param onCancel called when the owner leaves without saving
+ * @param imageUpload uploads the optional selected campsite image
  */
 @Composable
 fun RegisterCampsiteScreen(
