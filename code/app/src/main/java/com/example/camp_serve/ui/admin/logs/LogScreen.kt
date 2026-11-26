@@ -18,7 +18,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,15 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-
-private data class Notification (
-    val campsite: String,
-    val entrants: Int,
-    val text: String,
-    val timeAgo: String
-)
+import com.example.camp_serve.model.NotificationLog
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private data class Messages (
     val campsite: String,
@@ -46,20 +42,27 @@ private data class Messages (
     val timeAgo: String
 )
 
-private val SampleNotifications =
-    listOf(
-        Notification("Hinton Camps", 12, "Registration closes tomorrow", "2h ago"),
-        Notification("Banff Camps", 12, "Registration closes tomorrow", "2h ago")
-)
-
 private val SampleMessages =
     listOf(
         Messages("Hinton Camps", "Cole Smith", "The cookhouse is open on arrival", "2h ago"),
         Messages("Banff Camps", "John Doe", "The cookhouse is open on arrival", "2h ago")
-)
+    )
 
 @Composable
-fun LogScreen(navController: NavController) {
+fun LogScreen(navController: NavController, vm: AdminLogsViewModel = viewModel()) {
+    LogContent(
+        notifications = vm.notifications,
+        isLoading = vm.isLoading,
+        error = vm.error
+    )
+}
+
+@Composable
+private fun LogContent(
+    notifications: List<NotificationLog>,
+    isLoading: Boolean,
+    error: String?
+) {
     var selectedTab by remember { mutableIntStateOf(1) }
 
     Column(
@@ -89,8 +92,13 @@ fun LogScreen(navController: NavController) {
         }
         LazyColumn {
             if(selectedTab == 1) {
-                items(SampleNotifications) { notification ->
-                    NotificationRow(notification)
+                when {
+                    isLoading -> item { StatusText("Loading notification logs...") }
+                    error != null -> item { StatusText("Couldn't load notification logs: $error") }
+                    notifications.isEmpty() -> item { StatusText("No notification logs yet.") }
+                    else -> items(notifications) { notification ->
+                        NotificationRow(notification)
+                    }
                 }
             }
             else {
@@ -103,7 +111,15 @@ fun LogScreen(navController: NavController) {
 }
 
 @Composable
-private fun NotificationRow(notification: Notification) {
+private fun StatusText(text: String) {
+    Text(text, modifier = Modifier.padding(16.dp))
+}
+
+private fun formatSentAt(millis: Long): String =
+    SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault()).format(Date(millis))
+
+@Composable
+private fun NotificationRow(notification: NotificationLog) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -113,9 +129,9 @@ private fun NotificationRow(notification: Notification) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("${notification.campsite} - ${notification.entrants.toString()} entrants", fontWeight = FontWeight.Bold)
-            Text(notification.text, fontSize = 12.sp)
-            Text(notification.timeAgo, fontSize = 12.sp)
+            Text("${notification.recipientName.ifBlank { notification.recipientId }} - ${notification.campsite}", fontWeight = FontWeight.Bold)
+            Text(notification.message, fontSize = 12.sp)
+            Text("${formatSentAt(notification.sentAt)} - ${notification.status}", fontSize = 12.sp)
         }
     }
 }
@@ -140,18 +156,13 @@ private fun MessagesRow(message: Messages) {
 
 @Preview(showBackground = true)
 @Composable
-fun LogsScreenPreview() {
-    LogScreen(navController = rememberNavController())
-}
-
-@Preview(showBackground = true)
-@Composable
 fun LogScreenPreview() {
-    LogScreen(navController = rememberNavController())
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfilesScreenPreview() {
-    LogScreen(navController = rememberNavController())
+    LogContent(
+        notifications = listOf(
+            NotificationLog("1", "e1", "Cole Smith", "Hinton Camps", "You won the lottery", 1764110400000L, "sent"),
+            NotificationLog("2", "e2", "John Doe", "Banff Camps", "You were not selected", 1764107000000L, "failed")
+        ),
+        isLoading = false,
+        error = null
+    )
 }
