@@ -65,4 +65,5 @@ dependencies {
     implementation(libs.androidx.navigation.compose.v280)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.zxing.core)
 }

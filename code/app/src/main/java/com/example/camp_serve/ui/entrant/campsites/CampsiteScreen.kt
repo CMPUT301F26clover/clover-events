@@ -84,6 +84,14 @@ fun CampsitesScreen(
             color = Color(0xFF715CAA)
         )
 
+        // opens the entrant's reservations (US 01.06.01, US 01.06.02)
+        Button(
+            onClick = { navController.navigate("my_reservations") },
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+        ) {
+            Text("My Reservations")
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // search bar & search button
