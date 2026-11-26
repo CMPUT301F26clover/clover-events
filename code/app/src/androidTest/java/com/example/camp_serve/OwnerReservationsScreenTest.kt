@@ -15,8 +15,8 @@ import org.junit.Test
 /*
  * OwnerReservationsScreenTest.kt
  * Intent tests for the owner's Reservations screen: active (US 02.07.01),
- * past (US 02.07.02) and cancelled (US 02.07.03), plus the bottom bar tab.
- * Uses fake repos so the tests don't need Firestore.
+ * past (US 02.07.02), cancelled (US 02.07.03), rejecting (US 02.08.01)
+ * and the bottom bar tab. Uses fake repos so the tests don't need Firestore.
  */
 class OwnerReservationsScreenTest {
 
@@ -79,6 +79,43 @@ class OwnerReservationsScreenTest {
             )
         }
         composeTestRule.onNodeWithText("No active reservations.").assertIsDisplayed()
+    }
+
+    // US 02.08.01: rejecting moves the reservation to the Cancelled tab
+    @Test
+    fun reject_yes_movesToCancelled() {
+        composeTestRule.setContent {
+            OwnerReservationsScreen(
+                repository = TempReservationRecordRepo(),
+                ownerId = "fake-owner-01",
+                today = "2026-11-25"
+            )
+        }
+        composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()
+        composeTestRule.onNodeWithText("Reject this reservation?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Yes, reject").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("No active reservations.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cancelled").performClick()
+        // res-01 is now rejected too, so there are two "rejected" rows; check the dates of res-01
+        composeTestRule.onNodeWithText("2027-05-01 to 2027-05-02").assertIsDisplayed()
+    }
+
+    // US 02.08.01: choosing "Keep it" doesn't reject anything
+    @Test
+    fun reject_keepIt_staysActive() {
+        composeTestRule.setContent {
+            OwnerReservationsScreen(
+                repository = TempReservationRecordRepo(),
+                ownerId = "fake-owner-01",
+                today = "2026-11-25"
+            )
+        }
+        composeTestRule.onNodeWithText("Grande Cache Cookhouse Site").performClick()
+        composeTestRule.onNodeWithText("Keep it").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Tap a reservation to reject it.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Booked by: Alex Kim").assertIsDisplayed()
     }
 
     // navigation: the Reservations tab in the bottom bar opens the screen
