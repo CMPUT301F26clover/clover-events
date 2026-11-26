@@ -70,9 +70,16 @@ fun CampsitesScreen(
     var checkIn by rememberSaveable { mutableStateOf("") }
     var checkOut by rememberSaveable { mutableStateOf("") }
     var guests by rememberSaveable { mutableStateOf("") }
+    var appliedLocation by rememberSaveable { mutableStateOf("") }
+    var appliedCheckIn by rememberSaveable { mutableStateOf("") }
+    var appliedCheckOut by rememberSaveable { mutableStateOf("") }
+    var appliedGuests by rememberSaveable { mutableStateOf("") }
     var filtersExpanded by remember { mutableStateOf(false) }
     val guestCount = guests.toIntOrNull()
     val invalidGuests = guests.isNotEmpty() && (guestCount == null || guestCount < 1)
+    val invalidDates = (checkIn.isEmpty() != checkOut.isEmpty()) ||
+        (checkIn.isNotEmpty() && checkOut.isNotEmpty() && checkOut <= checkIn)
+    val appliedGuestCount = appliedGuests.toIntOrNull()
     var campsites by remember { mutableStateOf(listOf<Campsite>()) }
     var loading by remember { mutableStateOf(true) }
 
@@ -85,9 +92,9 @@ fun CampsitesScreen(
     val filtered = campsites.filter { campsite ->
         (query.isBlank() || campsite.name.contains(query.trim(), ignoreCase = true) ||
             campsite.location.contains(query.trim(), ignoreCase = true)) &&
-            (location.isBlank() || campsite.location.contains(location.trim(), ignoreCase = true)) &&
-            matchesStay(campsite.availableDates, checkIn, checkOut) &&
-            !invalidGuests && (guestCount == null || campsite.maxOccupancy >= guestCount)
+            (appliedLocation.isBlank() || campsite.location.contains(appliedLocation.trim(), ignoreCase = true)) &&
+            matchesStay(campsite.availableDates, appliedCheckIn, appliedCheckOut) &&
+            (appliedGuestCount == null || campsite.maxOccupancy >= appliedGuestCount)
     }
 
     Column(
@@ -128,7 +135,13 @@ fun CampsitesScreen(
             )
 
             Box {
-                TextButton(onClick = { filtersExpanded = true }) { Text("Filters") }
+                TextButton(onClick = {
+                    location = appliedLocation
+                    checkIn = appliedCheckIn
+                    checkOut = appliedCheckOut
+                    guests = appliedGuests
+                    filtersExpanded = true
+                }) { Text("Filters") }
                 DropdownMenu(
                     expanded = filtersExpanded,
                     onDismissRequest = { filtersExpanded = false }
@@ -158,16 +171,27 @@ fun CampsitesScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Row {
-                            TextButton(onClick = {
-                                location = ""
-                                checkIn = ""
-                                checkOut = ""
-                                guests = ""
-                            }) { Text("Clear filters") }
-                            Spacer(modifier = Modifier.weight(1f))
-                            TextButton(onClick = { filtersExpanded = false }) { Text("Done") }
-                        }
+                        TextButton(onClick = {
+                            location = ""
+                            checkIn = ""
+                            checkOut = ""
+                            guests = ""
+                            appliedLocation = ""
+                            appliedCheckIn = ""
+                            appliedCheckOut = ""
+                            appliedGuests = ""
+                        }) { Text("Clear filters") }
+                        Button(
+                            onClick = {
+                                appliedLocation = location
+                                appliedCheckIn = checkIn
+                                appliedCheckOut = checkOut
+                                appliedGuests = guests
+                                filtersExpanded = false
+                            },
+                            enabled = !invalidGuests && !invalidDates,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Apply filters") }
                     }
                 }
             }
