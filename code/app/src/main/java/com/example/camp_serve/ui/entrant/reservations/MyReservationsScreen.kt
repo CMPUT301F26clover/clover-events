@@ -9,15 +9,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,23 +31,27 @@ import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.data.TempReservationRecordRepo
 import com.example.camp_serve.model.Reservation
 import com.example.camp_serve.model.activeReservations
+import com.example.camp_serve.model.cancelledReservations
 import com.example.camp_serve.model.pastReservations
 import com.example.camp_serve.model.todayString
+import kotlinx.coroutines.launch
 
 /*
  * MyReservationsScreen.kt
- * Shows an entrant their active reservations (US 01.06.01) and their
- * past reservations (US 01.06.02).
+ * Shows an entrant their active reservations (US 01.06.01), their past
+ * reservations (US 01.06.02) and cancelled ones. Tapping an active
+ * reservation lets the entrant cancel it (US 01.07.01). Past reservations
+ * have a button to rate and review the stay (US 01.13.01, US 01.13.02).
  * Outstanding issues: none.
  */
 
 /**
- * Lists the entrant's reservations in two sections: active and past.
+ * Lists the entrant's reservations in three sections: active, past and cancelled.
  *
- * @param repository where reservations are loaded from
+ * @param repository where reservations are loaded from and updated
  * @param entrantId the entrant's device id
  * @param today today's date as "YYYY-MM-DD" (tests can pass a fixed date)
- * @param onReservationClick called when the entrant taps a reservation
+ * @param onReservationClick called when the entrant taps a past reservation (opens rate / review)
  */
 @Composable
 fun MyReservationsScreen(
@@ -55,6 +63,10 @@ fun MyReservationsScreen(
 ) {
     var loading by remember { mutableStateOf(true) }
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    // the reservation the entrant tapped to cancel, null means no dialog
+    var reservationToCancel by remember { mutableStateOf<Reservation?>(null) }
 
     // load this entrant's reservations when the screen opens
     LaunchedEffect(entrantId) {
@@ -81,30 +93,78 @@ fun MyReservationsScreen(
         } else {
             val active = activeReservations(allReservations, today)
             val past = pastReservations(allReservations, today)
+            val cancelled = cancelledReservations(allReservations)
 
-            // active section
+            // active section (tap one to cancel it)
             Text(text = "Active", fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             if (active.isEmpty()) {
                 Text("No active reservations.")
             } else {
+                Text("Tap a reservation to cancel it.")
+                Spacer(modifier = Modifier.height(8.dp))
                 for (reservation in active) {
-                    ReservationRow(reservation, onClick = { onReservationClick(reservation) })
+                    ReservationRow(reservation, onClick = { reservationToCancel = reservation })
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // past section
+            // past section (each one has a button to rate / review the stay)
             Text(text = "Past", fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             if (past.isEmpty()) {
                 Text("No past reservations.")
             } else {
                 for (reservation in past) {
-                    ReservationRow(reservation, onClick = { onReservationClick(reservation) })
+                    ReservationRow(
+                        reservation,
+                        onClick = { onReservationClick(reservation) },
+                        buttonText = "Rate / review this stay",
+                        onButtonClick = { onReservationClick(reservation) }
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // cancelled section (cancelled by the entrant or rejected by the owner)
+            Text(text = "Cancelled", fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (cancelled.isEmpty()) {
+                Text("No cancelled reservations.")
+            } else {
+                for (reservation in cancelled) {
+                    ReservationRow(reservation)
+                }
+            }
+        }
+
+        // confirm before cancelling (US 01.07.01)
+        val toCancel = reservationToCancel
+        if (toCancel != null) {
+            AlertDialog(
+                onDismissRequest = { reservationToCancel = null },
+                title = { Text("Cancel this reservation?") },
+                text = { Text(toCancel.campsiteName + ", " + toCancel.startDate + " to " + toCancel.endDate) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        reservationToCancel = null
+                        scope.launch {
+                            repository.updateStatus(toCancel.id, "cancelled")
+                            // reload so the screen shows the new status
+                            allReservations = repository.getReservationsForEntrant(entrantId)
+                        }
+                    }) {
+                        Text("Yes, cancel")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { reservationToCancel = null }) {
+                        Text("Keep it")
+                    }
+                }
+            )
         }
     }
 }
@@ -116,12 +176,16 @@ fun MyReservationsScreen(
  * @param reservation the reservation to show
  * @param showEntrant true to also show who booked it (owner screens)
  * @param onClick called when the row is tapped
+ * @param buttonText text for an optional button under the details; null means no button
+ * @param onButtonClick called when that button is tapped
  */
 @Composable
 fun ReservationRow(
     reservation: Reservation,
     showEntrant: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    buttonText: String? = null,
+    onButtonClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -136,6 +200,13 @@ fun ReservationRow(
                 Text(text = "Booked by: " + reservation.entrantName)
             }
             Text(text = "Status: " + reservation.status)
+            // optional button, e.g. "Rate / review this stay" on past reservations
+            if (buttonText != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onButtonClick) {
+                    Text(buttonText)
+                }
+            }
         }
     }
 }

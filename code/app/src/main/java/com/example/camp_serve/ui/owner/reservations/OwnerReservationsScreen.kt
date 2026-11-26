@@ -9,16 +9,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,21 +34,23 @@ import com.example.camp_serve.model.cancelledReservations
 import com.example.camp_serve.model.pastReservations
 import com.example.camp_serve.model.todayString
 import com.example.camp_serve.ui.entrant.reservations.ReservationRow
+import kotlinx.coroutines.launch
 
 /*
  * OwnerReservationsScreen.kt
  * Shows a campsite owner the reservations for their campsites, split into
  * active (US 02.07.01), past (US 02.07.02) and cancelled (US 02.07.03).
+ * Tapping an active reservation lets the owner reject it (US 02.08.01).
  * Outstanding issues: none.
  */
 
 /**
  * Lists reservations for the owner's campsites, one group at a time.
  *
- * @param repository where reservations are loaded from
+ * @param repository where reservations are loaded from and updated
  * @param ownerId the owner's device id
  * @param today today's date as "YYYY-MM-DD" (tests can pass a fixed date)
- * @param onReservationClick called when the owner taps a reservation
+ * @param onReservationClick called when the owner taps a past or cancelled reservation
  */
 @Composable
 fun OwnerReservationsScreen(
@@ -60,6 +65,11 @@ fun OwnerReservationsScreen(
 
     // which group is showing: "active", "past" or "cancelled"
     var selectedTab by remember { mutableStateOf("active") }
+
+    val scope = rememberCoroutineScope()
+
+    // the reservation the owner tapped to reject, null means no dialog
+    var reservationToReject by remember { mutableStateOf<Reservation?>(null) }
 
     // load reservations for this owner's campsites when the screen opens
     LaunchedEffect(ownerId) {
@@ -78,7 +88,6 @@ fun OwnerReservationsScreen(
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )
-
         Spacer(modifier = Modifier.height(12.dp))
 
         // tab buttons: the selected one is filled, the others are outlined
@@ -109,14 +118,52 @@ fun OwnerReservationsScreen(
             if (shown.isEmpty()) {
                 Text(emptyMessage)
             } else {
+                if (selectedTab == "active") {
+                    Text("Tap a reservation to reject it.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 for (reservation in shown) {
                     ReservationRow(
                         reservation,
                         showEntrant = true,
-                        onClick = { onReservationClick(reservation) }
+                        onClick = {
+                            // only active reservations can be rejected
+                            if (selectedTab == "active") {
+                                reservationToReject = reservation
+                            } else {
+                                onReservationClick(reservation)
+                            }
+                        }
                     )
                 }
             }
+        }
+
+        // confirm before rejecting (US 02.08.01)
+        val toReject = reservationToReject
+        if (toReject != null) {
+            AlertDialog(
+                onDismissRequest = { reservationToReject = null },
+                title = { Text("Reject this reservation?") },
+                text = { Text(toReject.entrantName + ", " + toReject.startDate + " to " + toReject.endDate) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        reservationToReject = null
+                        scope.launch {
+                            repository.updateStatus(toReject.id, "rejected")
+                            // reload so the screen shows the new status
+                            allReservations = repository.getReservationsForOwner(ownerId)
+                        }
+                    }) {
+                        Text("Yes, reject")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { reservationToReject = null }) {
+                        Text("Keep it")
+                    }
+                }
+            )
         }
     }
 }
