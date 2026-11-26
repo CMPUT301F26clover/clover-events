@@ -1,5 +1,7 @@
 package com.example.camp_serve.ui.owner.campsites
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,14 +25,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.camp_serve.data.CampsiteImageUpload
+import com.example.camp_serve.data.FirebaseCampsiteImageUpload
+import com.example.camp_serve.data.registerCampsite
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.model.Campsite
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /*
  * Form for an owner to register a new campsite (US 02.01.01, US 02.01.02).
- * TODO: map location and image upload aren't added yet.
+ * TODO: map location isn't added yet.
  */
 
 /**
@@ -47,7 +53,8 @@ fun RegisterCampsiteScreen(
     ownerId: String,
     modifier: Modifier = Modifier,
     onSaved: () -> Unit = {},
-    onCancel: () -> Unit = {}
+    onCancel: () -> Unit = {},
+    imageUpload: CampsiteImageUpload = remember { FirebaseCampsiteImageUpload() }
 ) {
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -58,6 +65,11 @@ fun RegisterCampsiteScreen(
     var rules by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var selectedImage by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) selectedImage = uri.toString()
+    }
 
     Column(
         modifier = modifier
@@ -120,6 +132,16 @@ fun RegisterCampsiteScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
+        Button(onClick = { imagePicker.launch("image/*") }, enabled = !saving) {
+            Text(if (selectedImage == null) "Select image" else "Change image")
+        }
+        if (selectedImage != null) {
+            Text("Image selected")
+            Button(onClick = { selectedImage = null }, enabled = !saving) {
+                Text("Remove image")
+            }
+        }
+
         // show the error message if there is one
         if (error != "") {
             Text(text = error, color = MaterialTheme.colorScheme.error)
@@ -128,13 +150,13 @@ fun RegisterCampsiteScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Row {
-            Button(onClick = onCancel) {
+            Button(onClick = onCancel, enabled = !saving) {
                 Text("Cancel")
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Button(onClick = {
+            Button(enabled = !saving, onClick = {
                 // check the required boxes one by one
                 if (!isValidText(name)) {
                     error = "Name is required"
@@ -157,9 +179,18 @@ fun RegisterCampsiteScreen(
                         rules = rules.trim(),
                         tags = parseTags(tags)
                     )
+                    saving = true
                     scope.launch {
-                        repository.addCampsite(campsite)
-                        onSaved()
+                        try {
+                            registerCampsite(campsite, selectedImage, repository, imageUpload)
+                            onSaved()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            error = "Could not save campsite or upload image. Please try again."
+                        } finally {
+                            saving = false
+                        }
                     }
                 }
             }) {
