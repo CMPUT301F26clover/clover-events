@@ -1,5 +1,7 @@
 package com.example.camp_serve
 
+import com.example.camp_serve.ui.owner.campsites.isValidLatitude
+import com.example.camp_serve.ui.owner.campsites.isValidLongitude
 import com.example.camp_serve.ui.owner.campsites.isValidOccupancy
 import com.example.camp_serve.ui.owner.campsites.isValidPrice
 import com.example.camp_serve.ui.owner.campsites.isValidText
@@ -22,6 +24,22 @@ class CampsiteValidationTest {
     fun emptyTextIsNotValid() {
         assertFalse(isValidText(""))
         assertFalse(isValidText("   "))
+    }
+
+    @Test
+    fun coordinatesAcceptValidValuesAndBoundaries() {
+        listOf("-90", "0", " 53.5461 ", "90").forEach { assertTrue(isValidLatitude(it)) }
+        listOf("-180", "0", "-113.4938", "180").forEach { assertTrue(isValidLongitude(it)) }
+    }
+
+    @Test
+    fun coordinatesRejectInvalidValues() {
+        listOf("", "north", "-90.1", "90.1", "NaN", "Infinity").forEach {
+            assertFalse(isValidLatitude(it))
+        }
+        listOf("", "west", "-180.1", "180.1", "NaN", "-Infinity").forEach {
+            assertFalse(isValidLongitude(it))
+        }
     }
 
     @Test

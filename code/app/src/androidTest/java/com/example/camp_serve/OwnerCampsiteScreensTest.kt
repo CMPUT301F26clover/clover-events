@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
 import com.example.camp_serve.ui.owner.campsites.MyCampsitesScreen
@@ -48,7 +49,7 @@ class OwnerCampsiteScreensTest {
         composeTestRule.setContent {
             RegisterCampsiteScreen(repository = TempCampsiteRepo(), ownerId = "fake-owner-01")
         }
-        composeTestRule.onNodeWithText("Save").performClick()
+        composeTestRule.onNodeWithText("Save").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Name is required").assertIsDisplayed()
     }
 

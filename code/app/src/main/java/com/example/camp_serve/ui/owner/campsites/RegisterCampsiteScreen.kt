@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
  * @param ownerId id of the owner registering it
  * @param onSaved called after the campsite is saved
  * @param onCancel called when the owner leaves without saving
+ * @param imageUpload uploads the optional selected campsite image
  */
 @Composable
 fun RegisterCampsiteScreen(
@@ -59,6 +60,8 @@ fun RegisterCampsiteScreen(
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf("") }
+    var longitude by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var occupancy by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
@@ -94,6 +97,20 @@ fun RegisterCampsiteScreen(
             value = location,
             onValueChange = { location = it },
             label = { Text("Location *") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = latitude,
+            onValueChange = { latitude = it },
+            label = { Text("Latitude * (-90 to 90)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = longitude,
+            onValueChange = { longitude = it },
+            label = { Text("Longitude * (-180 to 180)") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -162,6 +179,10 @@ fun RegisterCampsiteScreen(
                     error = "Name is required"
                 } else if (!isValidText(location)) {
                     error = "Location is required"
+                } else if (!isValidLatitude(latitude)) {
+                    error = "Latitude must be a number between -90 and 90"
+                } else if (!isValidLongitude(longitude)) {
+                    error = "Longitude must be a number between -180 and 180"
                 } else if (!isValidOccupancy(occupancy)) {
                     error = "Max occupancy must be a whole number, at least 1"
                 } else if (!isValidPrice(price)) {
@@ -173,6 +194,8 @@ fun RegisterCampsiteScreen(
                         ownerId = ownerId,
                         name = name.trim(),
                         location = location.trim(),
+                        latitude = latitude.trim().toDouble(),
+                        longitude = longitude.trim().toDouble(),
                         description = description.trim(),
                         maxOccupancy = occupancy.trim().toInt(),
                         price = price.trim().toDouble(),

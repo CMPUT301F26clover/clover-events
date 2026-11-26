@@ -9,6 +9,18 @@ fun isValidText(text: String): Boolean {
     return text.trim() != ""
 }
 
+/** Returns whether the input is a latitude in decimal degrees. */
+fun isValidLatitude(latitude: String): Boolean {
+    val number = latitude.trim().toDoubleOrNull() ?: return false
+    return number.isFinite() && number in -90.0..90.0
+}
+
+/** Returns whether the input is a longitude in decimal degrees. */
+fun isValidLongitude(longitude: String): Boolean {
+    val number = longitude.trim().toDoubleOrNull() ?: return false
+    return number.isFinite() && number in -180.0..180.0
+}
+
 // max occupancy has to be a whole number that's at least 1
 fun isValidOccupancy(occupancy: String): Boolean {
     val number = occupancy.trim().toIntOrNull()
