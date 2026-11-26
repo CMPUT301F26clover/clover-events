@@ -12,7 +12,7 @@ fun interface CampsiteImageUpload {
      * Uploads an image and returns its download URL.
      *
      * @param uri content URI of the selected image
-     * @return URL that can be saved with the campsite
+     * @return persistent download URL that can be saved with the campsite
      * @throws Exception if the upload or URL retrieval fails
      */
     suspend fun upload(uri: String): String
