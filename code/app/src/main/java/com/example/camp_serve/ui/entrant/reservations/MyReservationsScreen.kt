@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -34,13 +35,13 @@ import com.example.camp_serve.model.cancelledReservations
 import com.example.camp_serve.model.pastReservations
 import com.example.camp_serve.model.todayString
 import kotlinx.coroutines.launch
-import androidx.compose.material3.Button
 
 /*
  * MyReservationsScreen.kt
  * Shows an entrant their active reservations (US 01.06.01), their past
  * reservations (US 01.06.02) and cancelled ones. Tapping an active
- * reservation lets the entrant cancel it (US 01.07.01).
+ * reservation lets the entrant cancel it (US 01.07.01). Past reservations
+ * have a button to rate and review the stay (US 01.13.01, US 01.13.02).
  * Outstanding issues: none.
  */
 
@@ -50,7 +51,7 @@ import androidx.compose.material3.Button
  * @param repository where reservations are loaded from and updated
  * @param entrantId the entrant's device id
  * @param today today's date as "YYYY-MM-DD" (tests can pass a fixed date)
- * @param onReservationClick called when the entrant taps a past reservation
+ * @param onReservationClick called when the entrant taps a past reservation (opens rate / review)
  */
 @Composable
 fun MyReservationsScreen(
@@ -109,7 +110,7 @@ fun MyReservationsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // past section
+            // past section (each one has a button to rate / review the stay)
             Text(text = "Past", fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             if (past.isEmpty()) {
@@ -122,7 +123,6 @@ fun MyReservationsScreen(
                         buttonText = "Rate / review this stay",
                         onButtonClick = { onReservationClick(reservation) }
                     )
-
                 }
             }
 
@@ -176,6 +176,8 @@ fun MyReservationsScreen(
  * @param reservation the reservation to show
  * @param showEntrant true to also show who booked it (owner screens)
  * @param onClick called when the row is tapped
+ * @param buttonText text for an optional button under the details; null means no button
+ * @param onButtonClick called when that button is tapped
  */
 @Composable
 fun ReservationRow(
@@ -198,6 +200,7 @@ fun ReservationRow(
                 Text(text = "Booked by: " + reservation.entrantName)
             }
             Text(text = "Status: " + reservation.status)
+            // optional button, e.g. "Rate / review this stay" on past reservations
             if (buttonText != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(onClick = onButtonClick) {
