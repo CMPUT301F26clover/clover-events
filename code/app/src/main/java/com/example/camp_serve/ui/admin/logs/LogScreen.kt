@@ -2,16 +2,17 @@ package com.example.camp_serve.ui.admin.logs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,35 +26,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.camp_serve.model.MessageLog
 import com.example.camp_serve.model.NotificationLog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-private data class Messages (
-    val campsite: String,
-    val entrant: String,
-    val text: String,
-    val timeAgo: String
-)
-
-private val SampleMessages =
-    listOf(
-        Messages("Hinton Camps", "Cole Smith", "The cookhouse is open on arrival", "2h ago"),
-        Messages("Banff Camps", "John Doe", "The cookhouse is open on arrival", "2h ago")
-    )
 
 @Composable
 fun LogScreen(navController: NavController, vm: AdminLogsViewModel = viewModel()) {
     LogContent(
         notifications = vm.notifications,
         isLoading = vm.isLoading,
-        error = vm.error
+        error = vm.error,
+        messages = vm.messages,
+        messagesLoading = vm.messagesLoading,
+        messagesError = vm.messagesError
     )
 }
 
@@ -61,7 +54,10 @@ fun LogScreen(navController: NavController, vm: AdminLogsViewModel = viewModel()
 private fun LogContent(
     notifications: List<NotificationLog>,
     isLoading: Boolean,
-    error: String?
+    error: String?,
+    messages: List<MessageLog>,
+    messagesLoading: Boolean,
+    messagesError: String?
 ) {
     var selectedTab by remember { mutableIntStateOf(1) }
 
@@ -102,8 +98,13 @@ private fun LogContent(
                 }
             }
             else {
-                items(SampleMessages) { message ->
-                    MessagesRow(message)
+                when {
+                    messagesLoading -> item { StatusText("Loading message logs...") }
+                    messagesError != null -> item { StatusText("Couldn't load message logs: $messagesError") }
+                    messages.isEmpty() -> item { StatusText("No message logs yet.") }
+                    else -> items(messages) { message ->
+                        MessagesRow(message)
+                    }
                 }
             }
         }
@@ -137,20 +138,47 @@ private fun NotificationRow(notification: NotificationLog) {
 }
 
 @Composable
-private fun MessagesRow(message: Messages) {
+private fun MessagesRow(message: MessageLog) {
+    var showDetails by remember { mutableStateOf(false) }
+    val owner = message.ownerName.ifBlank { message.ownerId }
+    val entrant = message.entrantName.ifBlank { message.entrantId }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { showDetails = true }
             .background(Color(0xFFFEF7FF))
             .border(1.dp, Color(0xFF000000))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("${message.campsite} - ${message.entrant}", fontWeight = FontWeight.Bold)
-            Text(message.text, fontSize = 12.sp)
-            Text(message.timeAgo, fontSize = 12.sp)
+            Text("$owner to $entrant - ${message.campsite}", fontWeight = FontWeight.Bold)
+            Text(message.content, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(formatSentAt(message.sentAt), fontSize = 12.sp)
         }
+    }
+
+    if (showDetails) {
+        AlertDialog(
+            onDismissRequest = { showDetails = false },
+            title = { Text("Message details") },
+            text = {
+                Column {
+                    Text("From (owner): $owner")
+                    Text("To (entrant): $entrant")
+                    Text("Campsite: ${message.campsite}")
+                    Text("Sent: ${formatSentAt(message.sentAt)}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(message.content)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetails = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 
@@ -159,10 +187,14 @@ private fun MessagesRow(message: Messages) {
 fun LogScreenPreview() {
     LogContent(
         notifications = listOf(
-            NotificationLog("1", "e1", "Cole Smith", "Hinton Camps", "You won the lottery", 1764110400000L, "sent"),
-            NotificationLog("2", "e2", "John Doe", "Banff Camps", "You were not selected", 1764107000000L, "failed")
+            NotificationLog("1", "e1", "Cole Smith", "Hinton Camps", "You won the lottery", 1764110400000L, "sent")
         ),
         isLoading = false,
-        error = null
+        error = null,
+        messages = listOf(
+            MessageLog("1", "o1", "Sam Sample", "e1", "Cole Smith", "Hinton Camps", "The cookhouse is open on arrival", 1764110400000L)
+        ),
+        messagesLoading = false,
+        messagesError = null
     )
 }
