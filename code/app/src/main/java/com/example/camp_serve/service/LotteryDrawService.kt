@@ -23,7 +23,7 @@ import kotlin.random.Random
  * Scheduling runs in a caller-owned scope, not while the app process is stopped.
  *
  * After a saved draw, [onDrawSaved] runs once with the committed result; the owner app
- * passes [NotificationService.sendDrawResult] so entrants are notified (US 01.03.01).
+ * passes [NotificationService.sendDrawResult] so entrants are notified.
  * It is retried a few times if it fails, and a failure never undoes the saved draw
  * or stops the monitor.
  */

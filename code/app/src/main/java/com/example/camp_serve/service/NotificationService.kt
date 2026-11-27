@@ -18,6 +18,9 @@ import kotlinx.coroutines.CancellationException
 /*
  * NotificationService.kt builds and saves notifications for entrants.
  * - Win notices after a draw
+ * - "Not selected" notices after a draw
+ * Entrants who turned notifications off are saved as OPTED_OUT: they get
+ * no alert, but the draw result itself is still saved on the lottery.
  * Every notification is also written to the admin notification log.
  *
  * Outstanding issues: notifications are written after the draw is saved. If the
@@ -31,7 +34,7 @@ import kotlinx.coroutines.CancellationException
  * anything can call `NotificationService()` without Firebase.
  *
  * @param repository where notifications are saved; Firestore by default
- * @param entrantRepository used to look up entrant names; Firestore by default
+ * @param entrantRepository used to look up names and opt-outs; Firestore by default
  * @param logRepository the admin notification log (US 03.08.01); Firestore by default
  * @param clock current time in Unix epoch milliseconds
  */
@@ -49,31 +52,32 @@ class NotificationService(
     private val logs by lazy { logRepository ?: FirestoreNotificationLogRepo() }
 
     /**
-     * Notifies the winners of a saved draw (US 01.03.01). Each winner gets exactly one
-     * notice per draw; calling this again for the same draw overwrites the same
-     * documents instead of adding more.
+     * Notifies every winner and every entrant who was not selected
+     * in a saved draw. Each entrant gets exactly one notice per draw;
+     * calling this again for the same draw overwrites the same documents instead of
+     * adding more.
      *
      * @param lottery the lottery that was drawn
      * @param result the saved draw result
-     * @return the notifications that were saved (empty if there were no winners)
+     * @return the notifications that were saved (empty if no one joined)
      */
     suspend fun sendDrawResult(lottery: Lottery, result: LotteryResult): List<Notification> {
-        val notifications = buildDrawNotifications(lottery, result, clock())
-        if (notifications.isEmpty()) return emptyList()
+        val everyone = (result.winnerIds + result.loserIds).distinct()
+        if (everyone.isEmpty()) return emptyList()
+        val profiles = profiles(everyone)
+        val notifications = buildDrawNotifications(lottery, result, optedOut(profiles), clock())
         storage.saveAll(notifications)
-        log(notifications, profiles(notifications.map { it.recipientId }))
+        log(notifications, profiles)
         return notifications
     }
 
     /** Entrant profiles by id. Entrants with no profile are simply missing. */
     private suspend fun profiles(ids: List<String>): Map<String, Entrant> =
-        try {
-            entrants.getEntrantsByIds(ids).associateBy { it.id }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            emptyMap() // names are only for the log
-        }
+        entrants.getEntrantsByIds(ids).associateBy { it.id }
+
+    /** Ids of entrants who turned notifications off. Entrants with no profile get notified. */
+    private fun optedOut(profiles: Map<String, Entrant>): Set<String> =
+        profiles.values.filter { !it.notificationEnabled }.map { it.id }.toSet()
 
     /**
      * Writes one admin log entry per notification. A log that fails to save does not
@@ -97,6 +101,9 @@ class NotificationService(
         /** Log status for a delivered notification. */
         const val LOG_SENT = "sent"
 
+        /** Log status for a notification skipped because of the opt-out. */
+        const val LOG_OPTED_OUT = "not sent (opted out)"
+
         /** The campsite name(s) used in notifications. */
         fun campsiteLabel(lottery: Lottery): String =
             lottery.campsites.joinToString(", ") { it.name.ifBlank { "Campsite" } }
@@ -105,34 +112,41 @@ class NotificationService(
         fun winMessage(campsite: String): String =
             "You won the lottery for $campsite! Reserve your dates during the booking period."
 
+        fun loseMessage(campsite: String): String =
+            "You were not selected in the lottery for $campsite this time."
+
         /** Fixed id for one entrant's notice from one draw, so it is never saved twice. */
         fun drawNotificationId(lotteryId: String, drawNumber: Long, entrantId: String): String =
             "draw-$lotteryId-$drawNumber-$entrantId"
 
         /**
-         * Builds one win notice per winner, sent by the system on behalf of the
-         * lottery's owner.
+         * Builds one win notice per winner and one "not selected" notice per other
+         * entrant, sent by the system on behalf of the lottery's owner.
          */
         fun buildDrawNotifications(
             lottery: Lottery,
             result: LotteryResult,
+            optedOut: Set<String>,
             now: Long
         ): List<Notification> {
             val campsite = campsiteLabel(lottery)
-            return result.winnerIds.distinct().map { id ->
+            val winners = result.winnerIds.distinct()
+            val losers = result.loserIds.distinct().filter { it !in winners }
+            fun build(id: String, type: NotificationType, message: String, batch: String) =
                 Notification(
                     id = drawNotificationId(lottery.id, result.drawNumber, id),
-                    batchId = "draw-${lottery.id}-${result.drawNumber}-win",
+                    batchId = "draw-${lottery.id}-${result.drawNumber}-$batch",
                     recipientId = id,
                     senderId = lottery.ownerId,
                     lotteryId = lottery.id,
                     campsiteName = campsite,
-                    type = NotificationType.SYSTEM_WIN,
-                    message = winMessage(campsite),
+                    type = type,
+                    message = message,
                     sentAt = now,
-                    status = NotificationStatus.SENT
+                    status = statusFor(id, optedOut)
                 )
-            }
+            return winners.map { build(it, NotificationType.SYSTEM_WIN, winMessage(campsite), "win") } +
+                losers.map { build(it, NotificationType.SYSTEM_LOSE, loseMessage(campsite), "lose") }
         }
 
         /**
@@ -147,7 +161,10 @@ class NotificationService(
                 campsite = notification.campsiteName,
                 message = notification.message,
                 sentAt = notification.sentAt,
-                status = LOG_SENT
+                status = if (notification.status == NotificationStatus.SENT) LOG_SENT else LOG_OPTED_OUT
             )
+
+        private fun statusFor(id: String, optedOut: Set<String>) =
+            if (id in optedOut) NotificationStatus.OPTED_OUT else NotificationStatus.SENT
     }
 }

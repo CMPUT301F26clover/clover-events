@@ -47,14 +47,18 @@ class FakeNotificationLogRepository : NotificationLogRepository {
     }
 }
 
-/** Entrant profiles where every entrant is named "Name <id>". */
-class FakeEntrantProfiles : EntrantRepository {
+/**
+ * Entrant profiles where every entrant is named "Name <id>".
+ *
+ * @param optedOut ids of entrants who turned notifications off; can change during a test
+ */
+class FakeEntrantProfiles(val optedOut: MutableSet<String> = mutableSetOf()) : EntrantRepository {
     override suspend fun getEntrant(): Entrant = error("Not used")
     override suspend fun updateEntrant(entrant: Entrant) = error("Not used")
     override suspend fun deleteEntrant(id: String) = error("Not used")
     override suspend fun getAllEntrants(): List<Entrant> = error("Not used")
     override suspend fun getEntrantsByIds(ids: Collection<String>): List<Entrant> =
-        ids.map { Entrant(id = it, name = "Name $it") }
+        ids.map { Entrant(id = it, name = "Name $it", notificationEnabled = it !in optedOut) }
 }
 
 /** Lottery storage whose draw has already been saved. */

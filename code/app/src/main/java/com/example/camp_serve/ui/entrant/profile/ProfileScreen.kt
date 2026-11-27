@@ -267,6 +267,15 @@ fun ProfileScreen (
 
                 HorizontalDivider()
 
+                // notification opt-out
+                NotificationSetting(
+                    entrant = current,
+                    repository = repository,
+                    onSaved = { current = it }
+                )
+
+                HorizontalDivider()
+
                 TextButton(onClick = { showDeleteDialog = true }) {
                     Text("Delete Profile", color = MaterialTheme.colorScheme.error)
                 }

@@ -10,14 +10,16 @@ package com.example.camp_serve.model
 /**
  * Who a notification came from.
  * - [SYSTEM_WIN]: sent automatically by the draw to a winner
+ * - [SYSTEM_LOSE]: sent automatically by the draw to an entrant who was not selected
  */
-enum class NotificationType { SYSTEM_WIN }
+enum class NotificationType { SYSTEM_WIN, SYSTEM_LOSE }
 
 /**
  * What happened to a notification.
  * - [SENT]: delivered to the entrant's Alerts
+ * - [OPTED_OUT]: not delivered because the entrant turned notifications off
  */
-enum class NotificationStatus { SENT }
+enum class NotificationStatus { SENT, OPTED_OUT }
 
 /**
  * One notification for one entrant. Every field has a default so Firestore can load it.
