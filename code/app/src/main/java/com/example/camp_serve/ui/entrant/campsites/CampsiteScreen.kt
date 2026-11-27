@@ -116,6 +116,14 @@ fun CampsitesScreen(
             Text("My Reservations")
         }
 
+        // opens the entrant's notifications (US 01.03.01)
+        Button(
+            onClick = { navController.navigate("alerts") },
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+        ) {
+            Text("Notifications")
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Search and filters

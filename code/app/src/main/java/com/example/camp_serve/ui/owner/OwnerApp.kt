@@ -36,6 +36,7 @@ import com.example.camp_serve.data.LotteryRepository
 import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.service.LotteryDrawService
 import com.example.camp_serve.service.LotteryMonitor
+import com.example.camp_serve.service.NotificationService
 import com.example.camp_serve.ui.owner.campsites.EditCampsiteScreen
 import com.example.camp_serve.ui.owner.campsites.MyCampsitesScreen
 import com.example.camp_serve.ui.owner.campsites.OwnerCampsiteDetailScreen
@@ -298,7 +299,13 @@ private fun DrawMonitor(ownerId: String, lotteryRepository: LotteryRepository) {
         CoroutineScope(SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, _ -> })
     }
     val monitor = remember(scope) {
-        val service = LotteryDrawService(scope, repository = lotteryRepository)
+        // after each saved draw, notify the entrants (US 01.03.01)
+        val notifications = NotificationService()
+        val service = LotteryDrawService(
+            scope,
+            repository = lotteryRepository,
+            onDrawSaved = { lottery, result -> notifications.sendDrawResult(lottery, result) }
+        )
         LotteryMonitor(service::start)
     }
     DisposableEffect(scope) {
