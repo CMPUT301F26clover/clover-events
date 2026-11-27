@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Folders the FileProvider can share. Used to share campsite QR codes (US 02.02.01). -->
+<!-- Folders the FileProvider can share. Used to share campsite QR codes (US 02.02.01)
+     and reservation / cancellation CSV confirmations (US 01.05.02, US 01.07.02). -->
 <paths>
     <cache-path name="qr_codes" path="qr_codes/" />
+    <cache-path name="confirmations" path="confirmations/" />
 </paths>
