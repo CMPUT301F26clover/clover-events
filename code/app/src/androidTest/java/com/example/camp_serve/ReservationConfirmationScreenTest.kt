@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.camp_serve.data.TempReservationRecordRepo
 import com.example.camp_serve.ui.entrant.reservations.MyReservationsScreen
 import com.example.camp_serve.ui.entrant.reservations.ReservationConfirmationScreen
@@ -13,8 +14,9 @@ import org.junit.Test
 
 /*
  * ReservationConfirmationScreenTest.kt
- * Intent tests for the reservation confirmation screen (US 01.05.01)
- * and the "View confirmation" button on My Reservations.
+ * Intent tests for the reservation confirmation screen (US 01.05.01),
+ * its CSV download buttons (US 01.05.02, US 01.07.02) and the
+ * "View confirmation" button on My Reservations.
  * Uses TempReservationRecordRepo so the tests don't need Firestore.
  */
 class ReservationConfirmationScreenTest {
@@ -72,6 +74,32 @@ class ReservationConfirmationScreenTest {
             )
         }
         composeTestRule.onNodeWithText("Reservation not found.").assertIsDisplayed()
+    }
+
+    // US 01.05.02: a confirmed reservation can be downloaded or shared as CSV
+    @Test
+    fun confirmation_active_showsCsvButtons() {
+        composeTestRule.setContent {
+            ReservationConfirmationScreen(
+                repository = TempReservationRecordRepo(),
+                reservationId = "res-01"
+            )
+        }
+        composeTestRule.onNodeWithText("Download CSV").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Share CSV").performScrollTo().assertIsDisplayed()
+    }
+
+    // US 01.07.02: a cancelled reservation's confirmation can also be downloaded as CSV
+    @Test
+    fun confirmation_cancelled_showsCsvButtons() {
+        composeTestRule.setContent {
+            ReservationConfirmationScreen(
+                repository = TempReservationRecordRepo(),
+                reservationId = "res-03"
+            )
+        }
+        composeTestRule.onNodeWithText("Reservation cancelled").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Download CSV").performScrollTo().assertIsDisplayed()
     }
 
     // the "View confirmation" button on My Reservations sends the right reservation
