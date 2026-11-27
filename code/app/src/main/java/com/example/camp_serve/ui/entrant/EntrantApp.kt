@@ -26,6 +26,7 @@ import com.example.camp_serve.ui.entrant.campsites.CampsiteDetailScreen
 import com.example.camp_serve.ui.entrant.campsites.CampsitesScreen
 import com.example.camp_serve.ui.entrant.profile.ProfileScreen
 import com.example.camp_serve.ui.entrant.reservations.MyReservationsScreen
+import com.example.camp_serve.ui.entrant.reservations.ReservationConfirmationScreen
 import com.example.camp_serve.ui.entrant.reviews.ReviewScreen
 import kotlin.String
 
@@ -89,8 +90,6 @@ fun EntrantApp(
             )
         }
 
-
-
         // 3. Profile Screen
         composable("profile") {
             ProfileScreen(
@@ -99,13 +98,17 @@ fun EntrantApp(
         }
 
         // 4. My Reservations Screen (US 01.06.01, US 01.06.02)
-        // tapping a past reservation opens the rating and review screen
+        // tapping a past reservation opens the rating and review screen,
+        // "View confirmation" opens the confirmation screen
         composable("my_reservations") {
             MyReservationsScreen(
                 repository = reservationRepository,
                 entrantId = entrantId,
                 onReservationClick = { reservation ->
                     navController.navigate("review/" + reservation.id)
+                },
+                onConfirmationClick = { reservation ->
+                    navController.navigate("confirmation/" + reservation.id)
                 }
             )
         }
@@ -119,6 +122,16 @@ fun EntrantApp(
                 reviewRepository = reviewRepository,
                 campsiteRepository = campsiteRepository,
                 onDone = { navController.popBackStack() }
+            )
+        }
+
+        // 6. Reservation Confirmation Screen (US 01.05.01)
+        composable("confirmation/{reservationId}") { backStackEntry ->
+            val reservationId = backStackEntry.arguments?.getString("reservationId") ?: ""
+            ReservationConfirmationScreen(
+                repository = reservationRepository,
+                reservationId = reservationId,
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
