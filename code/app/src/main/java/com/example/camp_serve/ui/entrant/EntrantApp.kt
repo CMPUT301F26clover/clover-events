@@ -12,16 +12,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.camp_serve.data.AlertRepository
 import com.example.camp_serve.data.CampsiteRepository
 import com.example.camp_serve.data.DeviceId
 import com.example.camp_serve.data.EntrantRepository
 import com.example.camp_serve.data.FirestoreReservationRecordRepo
 import com.example.camp_serve.data.FirestoreReviewRepo
 import com.example.camp_serve.data.LotteryRepository
+import com.example.camp_serve.data.NotificationAlertRepo
 import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.data.ReviewRepository
 import com.example.camp_serve.data.TempCampsiteRepo
 import com.example.camp_serve.data.TempEntrantRepo
+import com.example.camp_serve.ui.entrant.alerts.AlertsRoute
 import com.example.camp_serve.ui.entrant.campsites.CampsiteDetailScreen
 import com.example.camp_serve.ui.entrant.campsites.CampsitesScreen
 import com.example.camp_serve.ui.entrant.profile.ProfileScreen
@@ -39,6 +42,7 @@ import kotlin.String
  * @param reservationRepository where the entrant's reservations are loaded from
  * @param reviewRepository where the entrant's ratings and reviews are saved
  * @param startCampsiteId id of a campsite to open right away, e.g. from a scanned QR code
+ * @param alertRepository the entrant's notifications (US 01.03.01); null uses Firestore
  */
 @Composable
 fun EntrantApp(
@@ -48,13 +52,17 @@ fun EntrantApp(
     lotteryRepository: LotteryRepository? = null,
     reservationRepository: ReservationRecordRepository = remember { FirestoreReservationRecordRepo() },
     reviewRepository: ReviewRepository = remember { FirestoreReviewRepo() },
-    startCampsiteId: String? = null
+    startCampsiteId: String? = null,
+    alertRepository: AlertRepository? = null
 ) {
     val navController = rememberNavController()
 
     // this device's id, so we know whose reservations to load
     val context = LocalContext.current
     val entrantId = remember { DeviceId(context).get() }
+
+    // this entrant's notifications, saved in Firestore (US 01.03.01)
+    val alerts = alertRepository ?: remember(entrantId) { NotificationAlertRepo(entrantId) }
 
     // open the scanned campsite once (not again after the screen rotates)
     var openedScannedCampsite by rememberSaveable { mutableStateOf(false) }
@@ -122,6 +130,14 @@ fun EntrantApp(
                 reviewRepository = reviewRepository,
                 campsiteRepository = campsiteRepository,
                 onDone = { navController.popBackStack() }
+            )
+        }
+
+        // Alerts: the entrant's notifications (US 01.03.01)
+        composable("alerts") {
+            AlertsRoute(
+                alertRepository = alerts,
+                entrantRepository = entrantRepository
             )
         }
 
