@@ -29,23 +29,76 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.camp_serve.data.ReservationRecordRepository
 import com.example.camp_serve.data.ReservationRepository
 import com.example.camp_serve.data.sampleOffer
 import com.example.camp_serve.model.CampsiteOffer
+import com.example.camp_serve.model.Reservation
+import com.example.camp_serve.model.StayDates
 import com.example.camp_serve.ui.theme.CampserveTheme
 import kotlinx.coroutines.launch
 
+/*
+ * ReserveScreen.kt
+ * The screen a lottery winner uses to pick dates, accept the campsite rules and
+ * reserve or decline the spot (US 01.04.01, 01.04.02, 01.04.03).
+ * Outstanding issues: the offer is still sample data, not built from the
+ * winner's lottery result.
+ */
+
 /**
- * Loads the offer for a lottery winner and shows [ReserveScreen].
- * Reserving or declining saves through the repository and shows a message.
- * Outstanding issues: no navigation yet, so nothing opens this screen.
+ * Whether the Reserve button is enabled: the entrant must have chosen a stay
+ * and accepted the rules and policies.
  *
- * @param repository where the offer is loaded from and the choice is saved to
+ * @param selectedStay the stay the entrant chose, or null if none yet
+ * @param accepted true if the entrant ticked the rules checkbox
+ */
+fun canReserve(selectedStay: StayDates?, accepted: Boolean): Boolean =
+    selectedStay != null && accepted
+
+/**
+ * Builds the reservation saved when a winner reserves. The rules are marked
+ * accepted because the Reserve button is only enabled after they were.
+ *
+ * @param offer the offer being reserved
+ * @param stay the stay the entrant chose
+ * @param entrantId id of the entrant who reserved
+ * @param entrantName name of the entrant, saved for the owner's list
+ */
+fun buildReservation(
+    offer: CampsiteOffer,
+    stay: StayDates,
+    entrantId: String,
+    entrantName: String
+): Reservation = Reservation(
+    campsiteId = offer.campsiteId,
+    campsiteName = offer.campsite,
+    ownerId = offer.ownerId,
+    entrantId = entrantId,
+    entrantName = entrantName,
+    startDate = stay.startDate,
+    endDate = stay.endDate,
+    status = "active",
+    rulesAccepted = true
+)
+
+/**
+ * Loads the winner's offer and shows [ReserveScreen]. Reserving saves a
+ * reservation through [recordRepository]; declining is recorded through
+ * [repository]. Shows a message afterwards, or an error if saving failed.
+ *
+ * @param repository where the offer is loaded from and the answer recorded
+ * @param recordRepository where the reservation is saved
+ * @param entrantId id of the signed-in entrant
+ * @param entrantName name of the signed-in entrant
  * @param onDone called after the entrant reserved or declined
  */
 @Composable
 fun ReserveRoute(
     repository: ReservationRepository,
+    recordRepository: ReservationRecordRepository,
+    entrantId: String,
+    entrantName: String,
     modifier: Modifier = Modifier,
     onDone: () -> Unit = {}
 ) {
@@ -53,6 +106,7 @@ fun ReserveRoute(
     var loading by remember { mutableStateOf(true) }
     var offer by remember { mutableStateOf(CampsiteOffer()) }
     var result by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         offer = repository.getOffer()
@@ -69,40 +123,62 @@ fun ReserveRoute(
             Text(message)
         }
     } else {
-        ReserveScreen(
-            offer = offer,
-            onReserve = { date ->
-                scope.launch {
-                    repository.reserve(offer.id, date)
-                    result = "Reserved ${offer.campsite} for $date."
-                    onDone()
+        Column(modifier = modifier.fillMaxSize()) {
+            error?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            ReserveScreen(
+                offer = offer,
+                onReserve = { stay ->
+                    scope.launch {
+                        try {
+                            repository.reserve(offer.id, stay)
+                            recordRepository.addReservation(
+                                buildReservation(offer, stay, entrantId, entrantName)
+                            )
+                            result = "Reserved ${offer.campsite} for ${stay.label}."
+                            onDone()
+                        } catch (e: Exception) {
+                            error = "Couldn't save your reservation. Please try again."
+                        }
+                    }
+                },
+                onDecline = {
+                    scope.launch {
+                        try {
+                            repository.decline(offer.id)
+                            result = "You declined the spot."
+                            onDone()
+                        } catch (e: Exception) {
+                            error = "Couldn't save your answer. Please try again."
+                        }
+                    }
                 }
-            },
-            onDecline = {
-                scope.launch {
-                    repository.decline(offer.id)
-                    result = "You declined the spot."
-                    onDone()
-                }
-            },
-            modifier = modifier
-        )
+            )
+        }
     }
 }
+
 /**
- * Whether the Reserve button is enabled: the entrant must have chosen a date
- * and accepted the rules and policies.
+ * The Reserve form: stay options, rules, the accept checkbox and the Reserve
+ * and Decline buttons. Reserve stays disabled until [canReserve] allows it.
+ *
+ * @param offer the offer to show
+ * @param onReserve called with the chosen stay when the entrant reserves
+ * @param onDecline called when the entrant declines
  */
-fun canReserve(selectedDate: String?, accepted: Boolean): Boolean =
-    selectedDate != null && accepted
 @Composable
 fun ReserveScreen(
     offer: CampsiteOffer,
-    onReserve: (String) -> Unit,
+    onReserve: (StayDates) -> Unit,
     onDecline: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedDate by remember { mutableStateOf<String?>(null) }
+    var selectedStay by remember { mutableStateOf<StayDates?>(null) }
     var accepted by remember { mutableStateOf(false) }
 
     Column(
@@ -128,13 +204,13 @@ fun ReserveScreen(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        offer.availableDates.forEach { date ->
+        offer.availableDates.forEach { stay ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(selected = selectedDate == date, onClick = { selectedDate = date })
-                Text(date)
+                RadioButton(selected = selectedStay == stay, onClick = { selectedStay = stay })
+                Text(stay.label)
             }
         }
 
@@ -152,8 +228,8 @@ fun ReserveScreen(
         }
 
         Button(
-            onClick = { selectedDate?.let(onReserve) },
-            enabled = canReserve(selectedDate, accepted),
+            onClick = { selectedStay?.let(onReserve) },
+            enabled = canReserve(selectedStay, accepted),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Reserve")
