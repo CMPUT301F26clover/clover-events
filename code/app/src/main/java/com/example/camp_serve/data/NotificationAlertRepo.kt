@@ -42,6 +42,7 @@ fun Notification.toAlert(): Alert = Alert(
     id = id,
     type = when (type) {
         NotificationType.SYSTEM_WIN -> AlertType.WON
+        NotificationType.SYSTEM_LOSE -> AlertType.LOST
     },
     campsite = campsiteName,
     message = message

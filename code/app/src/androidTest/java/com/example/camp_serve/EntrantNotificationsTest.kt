@@ -32,4 +32,19 @@ class EntrantNotificationsTest {
         composeTestRule.onNodeWithText("You won!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Lakeview Campsite").assertIsDisplayed()
     }
+
+    // an entrant who was not selected sees a "Not selected" notification
+    @Test
+    fun notificationsButton_showsNotSelectedNotification() {
+        composeTestRule.setContent {
+            EntrantApp(
+                lotteryRepository = TestLotteryRepository(),
+                alertRepository = TempAlertRepo()
+            )
+        }
+
+        composeTestRule.onNodeWithText("Notifications").performClick()
+        composeTestRule.onNodeWithText("Not selected").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pine Ridge Campsite").assertIsDisplayed()
+    }
 }

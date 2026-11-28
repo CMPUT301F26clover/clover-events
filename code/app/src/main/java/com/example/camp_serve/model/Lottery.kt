@@ -2,12 +2,20 @@ package com.example.camp_serve.model
 
 import kotlin.random.Random
 
+/*
+ * Lottery.kt
+ *
+ */
+
 /**
  * A campsite lottery. Times are Unix epoch milliseconds, with inclusive
  * starts and exclusive ends. The waiting list is the pool of registered entrants.
  *
  * Use LotteryRepository for persistent changes and LotteryDrawService.start(id)
  * to monitor a stored lottery. Owner IDs must come from the authenticated caller.
+ *
+ * @property id the lottery's id in Firestore
+ * @property ownerId the campsite owner's id
  */
 class Lottery(
     val id: String,

@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.camp_serve.data.DeviceId
+import com.example.camp_serve.data.FirestoreEntrantRepo
 import com.example.camp_serve.model.UserRole
 import com.example.camp_serve.ui.PromptScreen
 import com.example.camp_serve.ui.admin.AdminApp
@@ -64,7 +65,11 @@ class MainActivity : ComponentActivity() {
                             selectedRole != null -> when (selectedRole!!) {
                                 UserRole.ADMIN -> AdminApp()
                                 UserRole.CAMPSITEOWNER -> OwnerApp(ownerId = deviceId)
-                                UserRole.ENTRANT -> EntrantApp()
+                                // the entrant's profile and notification setting are saved
+                                // in Firestore
+                                UserRole.ENTRANT -> EntrantApp(
+                                    entrantRepository = remember { FirestoreEntrantRepo(deviceId) }
+                                )
                             }
                             // User has multiple roles: prompt user to pick one
                             roles.size > 1 -> PromptScreen(
@@ -74,7 +79,9 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                             // Default fallback
-                            else -> EntrantApp()
+                            else -> EntrantApp(
+                                entrantRepository = remember { FirestoreEntrantRepo(deviceId) }
+                            )
                         }
                     }
                 }
